@@ -39,6 +39,8 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                 local vertSel
                 local vertsOfFace
 
+            local subselectionOnLastRun
+
             local mousePosOnFirstClick
             local mousePosOnToolStart
             local pivotPositionOnFirstClick
@@ -98,6 +100,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                 global undoTwiceIfRelevantFunction
                 global redoTwiceIfRelevantFunction
                 global changeVariableOnUndoOrRedo
+                global updateBSelectionPosOnFirstClickVariableFunction
 
             -- Variables to organise
 
@@ -1129,6 +1132,26 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                     max move
                 )
+
+            -- Update bSelectionPosOnFirstClick variable
+
+                fn updateBSelectionPosOnFirstClickVariableFunction = (
+                    if selection.count != 0 then(
+                        if subObjectLevelIsZero() then(
+                            bSelectionPosOnFirstClick = $.pos
+                        )else(
+                            bSelectionPosOnFirstClick = getPivotPosition()
+
+                            --print bSelectionPosOnFirstClick
+                        )
+                    )
+                )
+
+            fn stopDetectingSubselectionChangesFunction = (
+                undo off(
+              		  deleteAllChangeHandlers id:#SubObj_SelectionChange
+                ) -- (Undo end bracket)
+            )
 
             -- Distance editText
 
@@ -2972,7 +2995,9 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                                 testTimer.stop()
 
-                                callBacks.RemoveScripts id:#once
+                                callBacks.RemoveScripts id:#changeVariableOnUndoOrRedo
+
+                                callBacks.RemoveScripts id:#selectionSetChanged
 
                             -- Ensure rollouts are closed
 
@@ -3045,7 +3070,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                             testTimer.stop()
 
                                             try(
-                                                stopDetectingSubselectionChangesFunction()
+                                                --stopDetectingSubselectionChangesFunction()
                                             )catch()
 
                                         -- Lock the selection if it isn't already
@@ -3092,7 +3117,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                                 BetterToolsGetWorldPointFromHWNDsTimer.start()
                                             )else(
                                                 try(
-                                                    stopDetectingSubselectionChangesFunction()
+                                                    --stopDetectingSubselectionChangesFunction()
                                                 )catch()
 
                                                 BetterToolsStartToolWhenMouseIsClickedTimer.stop()
@@ -3127,7 +3152,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                                         max spacebar
 
                                                         try(
-                                                            stopDetectingSubselectionChangesFunction()
+                                                            --stopDetectingSubselectionChangesFunction()
                                                         )catch()
 
                                                         BetterToolsStartToolWhenMouseIsClickedTimer.start()
@@ -3436,13 +3461,14 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                             -- Proceed as normal
 
                                 if hi == false and positionDistanceEditTextBoolean == false then(
-                                    -- New
+
                                     if firstClickPos == undefined then(
+                                    print "Bye"
                                         if startMovingFromSelectionsPivot == false then(
                                             firstClickPos = mousePosOnToolStart
                                         )else(
                                             if subObjectLevelIsZero() then(
-                                                firstClickPos = bSelectionPosOnToolStart
+                                                firstClickPos = bSelectionPosOnFirstClick
                                             )else(
                                                 firstClickPos = pivotPositionOnToolStart
                                             )
@@ -3453,31 +3479,11 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                             selectionPositionsRelativeToFirstClickPointArray = #()
 
                                             for a = 1 to $selection.count do(
-                                                append selectionPositionsRelativeToFirstClickPointArray [(firstClickPos[1] - selection[a].pos[1]), (firstClickPos[2] - selection[a].pos[2]), (firstClickPos[3] - selection[a].pos[3])]
-                                            )
-                                    )
-
-                                    /* Old
-                                    if firstClickPos == undefined then(
-                                        if startMovingFromSelectionsPivot == false then(
-                                            firstClickPos = worldPointFromHWNDSecondary
-                                        )else(
-                                            if subObjectLevelIsZero() then(
-                                                firstClickPos = bSelectionOriginalPos
-                                            )else(
-                                                firstClickPos = getPivotPosition()
-                                            )
-                                        )
-
-                                        -- Define selectionPositionsRelativeToFirstClickPointArray
-
-                                            selectionPositionsRelativeToFirstClickPointArray = #()
-
-                                            for a = 1 to bSelection.count do(
                                                 append selectionPositionsRelativeToFirstClickPointArray [(selection[a].pos[1] - firstClickPos[1]), (selection[a].pos[2] - firstClickPos[2]), (selection[a].pos[3] - firstClickPos[3])]
                                             )
+                                    )else(
+                                        print "Hi"
                                     )
-                                    */
 
                                     if (clickno == 0) then(
                                         -- Toggle and retoggle snap to reset it. Otherwise, any snaps on the same plane as the click point won't register for inferring.
@@ -3611,7 +3617,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                             testTimer.stop()
 
                             try(
-                                stopDetectingSubselectionChangesFunction()
+                                --stopDetectingSubselectionChangesFunction()
                             )catch()
 
                         selectionChanged = false
@@ -4259,6 +4265,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                                                                         if objectWasUnderMouseOnFirstClick == true or selLocked() then(
                                                                             -- Run the start tool function
+                                                                            print 1
 
                                                                                 -- Stop timers
 
@@ -4277,6 +4284,8 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                                                                 -- Variables
 
                                                                                     selectAndMoveMode = false
+
+                                                                                    userHasDraggedSubselection = false
 
                                                                                     toolWasStarted = true
 
@@ -4337,14 +4346,14 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                                             )
                                                         )else(
                                                             if moveInSubobjectMode == true then( -- If not, this means the callback was triggered by changing in or out of subobject level, so nothing should be done
-                                                                -- If mouse is clicking on either selection or nothing, wait until user drags the subselection or unclicks...
+                                                                -- If mouse is clicking on either selection or nothing, wait until user unclicks and start the tool if something is still selected
 
                                                                     if userIsClickingOnEitherSelectionOrNothing() then(
                                                                         -- Variables
 
                                                                             mouseHasBeenClicked = true
 
-                                                                        -- Run the tool if he user has dragged the subselection
+                                                                        -- Note if user drags
 
                                                                             -- Variables
 
@@ -4363,7 +4372,40 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                                                             -- If the current selection position is different from the last, and they are not just different because the last hasn't been defined yet due to this being the first run, then start the tool
 
                                                                                 if HWNDOnCurrentRun != HWNDOnLastRun and HWNDOnCurrentRun != undefined and HWNDOnLastRun != undefined then(
+                                                                                    userHasDraggedSubselection = true
+                                                                                )
+
+                                                                            -- Variables
+
+                                                                                -- Define HWNDOnLastRun variable
+
+                                                                                    maxChildrenHWNDs = (windows.getChildrenHWND #max)
+
+                                                                                    for a = 1 to maxChildrenHWNDs.count do(
+                                                                                        if maxChildrenHWNDs[a][4] == "Static" and maxChildrenHWNDs[a][5] == "X:" and maxChildrenHWNDs[a][6] == 0P then(
+                                                                                            if subObjectLevelIsZero() then(
+                                                                                                HWNDOnLastRun = [((maxChildrenHWNDs[a + 3][5]) as float),((maxChildrenHWNDs[a + 9][5]) as float),((maxChildrenHWNDs[a + 15][5]) as float)]
+                                                                                            )else(
+                                                                                                HWNDOnLastRun = getPivotPosition()
+                                                                                            )
+
+                                                                                            exit
+                                                                                        )
+                                                                                    )
+                                                                    )
+
+                                                                -- If user has just unclicked from selection or nothing, and hasn't dragged...
+
+                                                                    if not userIsClickingOnEitherSelectionOrNothing() then(
+                                                                        if mouseHasBeenClicked == true then(
+                                                                            if userHasDraggedSubselection == false then(
+                                                                                -- Variables
+
+                                                                                    mouseHasBeenClicked = false
+
+                                                                                if somethingMoveableIsSelected() then(
                                                                                     -- Run the start tool function
+                                                                                    print 2
 
                                                                                         -- Stop timers
 
@@ -4381,8 +4423,6 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                                                                                         -- Variables
 
-                                                                                            selectAndMoveMode = false
-
                                                                                             toolWasStarted = true
 
                                                                                             HWNDOnLastRun = undefined
@@ -4393,6 +4433,8 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                                                                                             mousePos2D = mouse.pos
 
+                                                                                            userHasDraggedSubselection = false
+
                                                                                         undo off(
                                                                                             -- Ensure axis is hidden
 
@@ -4400,30 +4442,20 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                                                                                     max showaxisicon
                                                                                                 )
 
-                                                                                            -- Move and activate the grid if selectAndMoveMode (or else it is done in the tool once worldPoint data is available). This needs to be done here rather than in the tool, so that any mouse moving done between first click and the tool starting is done on the plane we clicked on and the object moves to the expected place (which it otherwise wouldn't on its first move as mouse is still registered as being on the default grid).
+                                                                                            -- Activate tiny grid
 
-                                                                                                $BetterToolsMainGrid.pos = worldPointFromHWND
+                                                                                                -- Ensure grid snap is on so that if mouse moves before tool starts, we're constantly snapped to the active grid's points and HWND readings are accurate, meaning the object is moved to the right place on tool start
 
-                                                                                                $BetterToolsXGrid.pos = worldPointFromHWND
+                                                                                                    snapMode.setOSnapItemActive 4 1 true
 
-                                                                                                $BetterToolsYGrid.pos = worldPointFromHWND
+                                                                                                    snapMode.display = false
 
-                                                                                                $BetterToolsZGrid.pos = worldPointFromHWND
+                                                                                                -- Set grid sizes to really small
 
-                                                                                                activeGrid = $BetterToolsMainGrid
-
-                                                                                            -- Ensure grid snap is on so that if mouse moves before tool starts, we're constantly snapped to the active grid's points and HWND readings are accurate, meaning the object is moved to the right place on tool start
-
-                                                                                                snapMode.setOSnapItemActive 4 1 true
-
-                                                                                                snapMode.display = false
-
-                                                                                            -- Set grid sizes to really small
-
-                                                                                                $BetterToolsMainGrid.grid = .125
-                                                                                                $BetterToolsXGrid.grid = .125
-                                                                                                $BetterToolsYGrid.grid = .125
-                                                                                                $BetterToolsZGrid.grid = .125
+                                                                                                    $BetterToolsMainGrid.grid = .125
+                                                                                                    $BetterToolsXGrid.grid = .125
+                                                                                                    $BetterToolsYGrid.grid = .125
+                                                                                                    $BetterToolsZGrid.grid = .125
 
                                                                                             if moveInSubobjectMode == false then(
                                                                                                 subObjectLevel = 0
@@ -4444,99 +4476,6 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                                                                             lastAxisConstraints = toolmode.axisconstraints
                                                                                         )
                                                                                 )
-
-                                                                            -- Variables
-
-                                                                                -- Define HWNDOnLastRun variable
-
-                                                                                    maxChildrenHWNDs = (windows.getChildrenHWND #max)
-
-                                                                                    for a = 1 to maxChildrenHWNDs.count do(
-                                                                                        if maxChildrenHWNDs[a][4] == "Static" and maxChildrenHWNDs[a][5] == "X:" and maxChildrenHWNDs[a][6] == 0P then(
-                                                                                            HWNDOnLastRun = [((maxChildrenHWNDs[a + 3][5]) as float),((maxChildrenHWNDs[a + 9][5]) as float),((maxChildrenHWNDs[a + 15][5]) as float)]
-
-                                                                                            exit
-                                                                                        )
-                                                                                    )
-                                                                    )
-
-                                                                -- If user has just unclicked from selection or nothing...
-
-                                                                    if not userIsClickingOnEitherSelectionOrNothing() then(
-                                                                        if mouseHasBeenClicked == true then(
-                                                                            -- Variables
-
-                                                                                mouseHasBeenClicked = false
-
-                                                                            if somethingMoveableIsSelected() then(
-                                                                                -- Run the start tool function
-
-                                                                                    -- Stop timers
-
-                                                                                        testTimer.stop()
-
-                                                                                        BetterToolsDetectIfUndoOrRedoMadeNoChangeToSelectionSetTimer.stop()
-
-                                                                                        BetterToolsGetWorldPointFromHWNDsTimer.stop()
-
-                                                                                        BetterToolsDetermineWhetherToMoveInSubobjectModeTimer.stop()
-
-                                                                                        BetterToolsDetectWhenMoveToolIsExitedTimer.stop()
-
-                                                                                        startMoveToolWhenAnObjectIsSelectedTimer.stop()
-
-                                                                                    -- Variables
-
-                                                                                        toolWasStarted = true
-
-                                                                                        HWNDOnLastRun = undefined
-
-                                                                                        HWNDOnCurrentRun = undefined
-
-                                                                                        mouseHasBeenUnclicked2 = false
-
-                                                                                        mousePos2D = mouse.pos
-
-                                                                                    undo off(
-                                                                                        -- Ensure axis is hidden
-
-                                                                                            if (getINISetting maxINIFile "Performance" "showaxisicon") == "1" then(
-                                                                                                max showaxisicon
-                                                                                            )
-
-                                                                                        -- Activate tiny grid
-
-                                                                                            -- Ensure grid snap is on so that if mouse moves before tool starts, we're constantly snapped to the active grid's points and HWND readings are accurate, meaning the object is moved to the right place on tool start
-
-                                                                                                snapMode.setOSnapItemActive 4 1 true
-
-                                                                                                snapMode.display = false
-
-                                                                                            -- Set grid sizes to really small
-
-                                                                                                $BetterToolsMainGrid.grid = .125
-                                                                                                $BetterToolsXGrid.grid = .125
-                                                                                                $BetterToolsYGrid.grid = .125
-                                                                                                $BetterToolsZGrid.grid = .125
-
-                                                                                        if moveInSubobjectMode == false then(
-                                                                                            subObjectLevel = 0
-                                                                                        )
-
-                                                                                        selectionChanged = true
-                                                                                    ) -- (Undo end bracket)
-
-                                                                                     -- Set mouseHasBeenUnclicked to false. This needs to be done by the end of the ensuing move, so might as well update it now for readability's sake.
-
-                                                                                        mouseHasBeenUnclicked = false
-
-                                                                                    if toolmode.axisconstraints == undefined then( -- If the user has clicked the gizmo (whether to change constraints or to drag), do nothing
-                                                                                        bSelectionOriginalPos = selection[1].pos
-
-                                                                                        startbetterMoveToolFunction()
-                                                                                    )else(
-                                                                                        lastAxisConstraints = toolmode.axisconstraints
-                                                                                    )
                                                                             )
                                                                         )
                                                                     )
@@ -4546,16 +4485,121 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                                     -- Select and move stuff
 
                                                         -- If selection has been changed then start the tool...
-                                                        print 1
+
                                                             if moveableSelectionIsOne() and ((selectionOnCurrentRound as string) != (selectionOnLastRound as string)) then( -- The function should only do anything if an object is selected by clicking (not click-dragging or non-viewport-clicking things such as selecting things in scene explorer), and thus only if a single object is selected, unless a selection already existed.
                                                                 if subObjectLevelIsZero() then(
                                                                     if moveInSubobjectMode == false then( -- If not, this means the callback was triggered by changing in or out of subobject level, so nothing should be done
                                                                         -- Ensure an object is under the mouse. If not, this means the user has selected the object in a way other than clicking on it (such as through the scene exporer), so nothing should happen.
-                                                                        print 2
+
                                                                             if objectWasUnderMouseOnFirstClick == true then(
+                                                                                -- If the user has dragged, only start the tool if a draggable object is selected. Some object types freeze timers while they are being selected (and mouse is still clicked), meaning in their case the tool doesn't start until mouse is released.
+
+                                                                                    if bSelectionPosOnFirstClick == $.pos or (((modPanel.getCurrentObject() as string) != "Editable Poly") and ((modPanel.getCurrentObject() as string) != "Editable Mesh")) then(
+                                                                                        -- Run the start tool function
+                                                                                        print 3
+
+                                                                                            testTimer.stop()
+
+                                                                                            undo off(
+                                                                                                BetterToolsDetectIfUndoOrRedoMadeNoChangeToSelectionSetTimer.stop()
+
+                                                                                                BetterToolsGetWorldPointFromHWNDsTimer.stop()
+
+                                                                                                BetterToolsDetermineWhetherToMoveInSubobjectModeTimer.stop()
+
+                                                                                                BetterToolsDetectWhenMoveToolIsExitedTimer.stop()
+
+                                                                                                toolWasStarted = true
+
+                                                                                                mousePos2D = mouse.pos
+
+                                                                                                -- Ensure axis is hidden
+
+                                                                                                    if (getINISetting maxINIFile "Performance" "showaxisicon") == "1" then(
+                                                                                                        max showaxisicon
+                                                                                                    )
+
+                                                                                                -- Define worldPointFromHWND variable
+
+                                                                                                    maxChildrenHWNDs = (windows.getChildrenHWND #max)
+
+                                                                                                    for a = 1 to maxChildrenHWNDs.count do(
+                                                                                                        if maxChildrenHWNDs[a][4] == "Static" and maxChildrenHWNDs[a][5] == "X:" and maxChildrenHWNDs[a][6] == 0P then(
+                                                                                                            worldPointFromHWND = [((maxChildrenHWNDs[a + 3][5]) as float),((maxChildrenHWNDs[a + 9][5]) as float),((maxChildrenHWNDs[a + 15][5]) as float)]
+
+                                                                                                            exit
+                                                                                                        )
+                                                                                                    )
+
+                                                                                                -- Move and activate the grid if selectAndMoveMode (or else it is done in the tool once worldPoint data is available). This needs to be done here rather than in the tool, so that any mouse moving done between first click and the tool starting is done on the plane we clicked on and the object moves to the expected place (which it otherwise wouldn't on its first move as mouse is still registered as being on the default grid).
+
+                                                                                                    $BetterToolsMainGrid.pos = worldPointFromHWND
+
+                                                                                                    $BetterToolsXGrid.pos = worldPointFromHWND
+
+                                                                                                    $BetterToolsYGrid.pos = worldPointFromHWND
+
+                                                                                                    $BetterToolsZGrid.pos = worldPointFromHWND
+
+                                                                                                    activeGrid = $BetterToolsMainGrid
+
+                                                                                                -- Ensure grid snap is on so that if mouse moves before tool starts, we're constantly snapped to the active grid's points and HWND readings are accurate, meaning the object is moved to the right place on tool start
+
+                                                                                                    snapMode.setOSnapItemActive 4 1 true
+
+                                                                                                    snapMode.display = false
+
+                                                                                                -- Set grid sizes to really small
+
+                                                                                                    $BetterToolsMainGrid.grid = .125
+                                                                                                    $BetterToolsXGrid.grid = .125
+                                                                                                    $BetterToolsYGrid.grid = .125
+                                                                                                    $BetterToolsZGrid.grid = .125
+
+                                                                                                if moveInSubobjectMode == false then(
+                                                                                                    subObjectLevel = 0
+                                                                                                )
+
+                                                                                                selectionChanged = true
+                                                                                            ) -- (Undo end bracket)
+
+                                                                                            selectAndMoveMode = true
+
+                                                                                            userHasDraggedSubselection = false
+
+                                                                                            startMoveToolWhenAnObjectIsSelectedTimer.stop()
+
+                                                                                             -- Set mouseHasBeenUnclicked to false. This needs to be done by the end of the ensuing move, so might as well update it now for readability's sake.
+
+                                                                                                mouseHasBeenUnclicked = false
+
+                                                                                            bSelectionOriginalPos = selection[1].pos
+
+                                                                                            startbetterMoveToolFunction()
+                                                                                    )
+                                                                            )
+                                                                    )
+                                                                )else(
+                                                                    if moveInSubobjectMode == true then( -- If not, this means the callback was triggered by changing in or out of subobject level, so nothing should be done
+                                                                        -- If the user has dragged the object, only start the tool if a draggable object is selected. Some object types freeze timers while they are being selected (and mouse is still clicked), meaning in their case the tool doesn't start until mouse is released.
+
+                                                                            if bSelectionPosOnFirstClick == getPivotPosition() then(
                                                                                 -- Run the start tool function
-                                                                                print 3
+                                                                                print 4
+
                                                                                     testTimer.stop()
+
+                                                                                    toolWasStarted = true
+
+                                                                                    HWNDOnLastRun = undefined
+
+                                                                                    HWNDOnCurrentRun = undefined
+
+                                                                                    mouseHasBeenUnclicked2 = false
+
+                                                                                    selectAndMoveMode = true
+
+                                                                                    userHasDraggedSubselection = false
 
                                                                                     undo off(
                                                                                         BetterToolsDetectIfUndoOrRedoMadeNoChangeToSelectionSetTimer.stop()
@@ -4565,8 +4609,6 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                                                                         BetterToolsDetermineWhetherToMoveInSubobjectModeTimer.stop()
 
                                                                                         BetterToolsDetectWhenMoveToolIsExitedTimer.stop()
-
-                                                                                        toolWasStarted = true
 
                                                                                         mousePos2D = mouse.pos
 
@@ -4620,126 +4662,37 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                                                                         selectionChanged = true
                                                                                     ) -- (Undo end bracket)
 
-                                                                                    selectAndMoveMode = true
-
                                                                                     startMoveToolWhenAnObjectIsSelectedTimer.stop()
 
-                                                                                     -- Set mouseHasBeenUnclicked to false. This needs to be done by the end of the ensuing move, so might as well update it now for readability's sake.
+                                                                                    -- Set axis constraints to undefined any time the gizmo stops being clicked on. This may need to moved to its own timer-activated function if selection lock functionality is changed from being always on if a selection exists, as if this happens then sometimes select and move mode will be false (meaning this function isn't constantly running on a timer) while a gizmo exists.
 
-                                                                                        mouseHasBeenUnclicked = false
+                                                                                        if toolmode.axisconstraints != undefined then(
+                                                                                            if ((mouse.buttonStates as string) != "#{1}" and (mouse.buttonStates as string) != "#{1, 3}") then(
+                                                                                                (dotNetClass "Autodesk.Max.GlobalInterface").Instance.coreinterface7.PushAxisConstraints -2147483646
 
-                                                                                    bSelectionOriginalPos = selection[1].pos
+                                                                                                -- Toggle and retoggle selection lock. If the gizmo is clicked while selection is locked, snap stops working due to a bug in Max. This fixes the issue.
 
-                                                                                    startbetterMoveToolFunction()
-                                                                            )
-                                                                    )
-                                                                )else(
-                                                                    if moveInSubobjectMode == true then( -- If not, this means the callback was triggered by changing in or out of subobject level, so nothing should be done
-                                                                        -- Run the start tool function
+                                                                                                    max spacebar
 
-                                                                            testTimer.stop()
+                                                                                                    max spacebar
+                                                                                            )
+                                                                                        )
 
-                                                                            toolWasStarted = true
+                                                                                    if selectionChanged == true then(
+                                                                                         -- Set mouseHasBeenUnclicked to false. This needs to be done by the end of the ensuing move, so might as well update it now for readability's sake.
 
-                                                                            HWNDOnLastRun = undefined
+                                                                                            mouseHasBeenUnclicked = false
 
-                                                                            HWNDOnCurrentRun = undefined
+                                                                                        if selection.count != 0 and undoOrRedoJustOccurred == false then( -- If an undo or redo has triggered the function, the ensuing code shouldn't run
+                                                                                            if toolmode.axisconstraints == undefined then( -- If the user has clicked the gizmo (whether to change constraints or to drag), do nothing
+                                                                                                bSelectionOriginalPos = selection[1].pos
 
-                                                                            mouseHasBeenUnclicked2 = false
-
-                                                                            selectAndMoveMode = true
-
-                                                                            undo off(
-                                                                                BetterToolsDetectIfUndoOrRedoMadeNoChangeToSelectionSetTimer.stop()
-
-                                                                                BetterToolsGetWorldPointFromHWNDsTimer.stop()
-
-                                                                                BetterToolsDetermineWhetherToMoveInSubobjectModeTimer.stop()
-
-                                                                                BetterToolsDetectWhenMoveToolIsExitedTimer.stop()
-
-                                                                                mousePos2D = mouse.pos
-
-                                                                                -- Ensure axis is hidden
-
-                                                                                    if (getINISetting maxINIFile "Performance" "showaxisicon") == "1" then(
-                                                                                        max showaxisicon
-                                                                                    )
-
-                                                                                -- Define worldPointFromHWND variable
-
-                                                                                    maxChildrenHWNDs = (windows.getChildrenHWND #max)
-
-                                                                                    for a = 1 to maxChildrenHWNDs.count do(
-                                                                                        if maxChildrenHWNDs[a][4] == "Static" and maxChildrenHWNDs[a][5] == "X:" and maxChildrenHWNDs[a][6] == 0P then(
-                                                                                            worldPointFromHWND = [((maxChildrenHWNDs[a + 3][5]) as float),((maxChildrenHWNDs[a + 9][5]) as float),((maxChildrenHWNDs[a + 15][5]) as float)]
-
-                                                                                            exit
+                                                                                                startbetterMoveToolFunction()
+                                                                                            )else(
+                                                                                                lastAxisConstraints = toolmode.axisconstraints
+                                                                                            )
                                                                                         )
                                                                                     )
-
-                                                                                -- Move and activate the grid if selectAndMoveMode (or else it is done in the tool once worldPoint data is available). This needs to be done here rather than in the tool, so that any mouse moving done between first click and the tool starting is done on the plane we clicked on and the object moves to the expected place (which it otherwise wouldn't on its first move as mouse is still registered as being on the default grid).
-
-                                                                                    $BetterToolsMainGrid.pos = worldPointFromHWND
-
-                                                                                    $BetterToolsXGrid.pos = worldPointFromHWND
-
-                                                                                    $BetterToolsYGrid.pos = worldPointFromHWND
-
-                                                                                    $BetterToolsZGrid.pos = worldPointFromHWND
-
-                                                                                    activeGrid = $BetterToolsMainGrid
-
-                                                                                -- Ensure grid snap is on so that if mouse moves before tool starts, we're constantly snapped to the active grid's points and HWND readings are accurate, meaning the object is moved to the right place on tool start
-
-                                                                                    snapMode.setOSnapItemActive 4 1 true
-
-                                                                                    snapMode.display = false
-
-                                                                                -- Set grid sizes to really small
-
-                                                                                    $BetterToolsMainGrid.grid = .125
-                                                                                    $BetterToolsXGrid.grid = .125
-                                                                                    $BetterToolsYGrid.grid = .125
-                                                                                    $BetterToolsZGrid.grid = .125
-
-                                                                                if moveInSubobjectMode == false then(
-                                                                                    subObjectLevel = 0
-                                                                                )
-
-                                                                                selectionChanged = true
-                                                                            ) -- (Undo end bracket)
-
-                                                                            startMoveToolWhenAnObjectIsSelectedTimer.stop()
-
-                                                                            -- Set axis constraints to undefined any time the gizmo stops being clicked on. This may need to moved to its own timer-activated function if selection lock functionality is changed from being always on if a selection exists, as if this happens then sometimes select and move mode will be false (meaning this function isn't constantly running on a timer) while a gizmo exists.
-
-                                                                                if toolmode.axisconstraints != undefined then(
-                                                                                    if ((mouse.buttonStates as string) != "#{1}" and (mouse.buttonStates as string) != "#{1, 3}") then(
-                                                                                        (dotNetClass "Autodesk.Max.GlobalInterface").Instance.coreinterface7.PushAxisConstraints -2147483646
-
-                                                                                        -- Toggle and retoggle selection lock. If the gizmo is clicked while selection is locked, snap stops working due to a bug in Max. This fixes the issue.
-
-                                                                                            max spacebar
-
-                                                                                            max spacebar
-                                                                                    )
-                                                                                )
-
-                                                                            if selectionChanged == true then(
-                                                                                 -- Set mouseHasBeenUnclicked to false. This needs to be done by the end of the ensuing move, so might as well update it now for readability's sake.
-
-                                                                                    mouseHasBeenUnclicked = false
-
-                                                                                if selection.count != 0 and undoOrRedoJustOccurred == false then( -- If an undo or redo has triggered the function, the ensuing code shouldn't run
-                                                                                    if toolmode.axisconstraints == undefined then( -- If the user has clicked the gizmo (whether to change constraints or to drag), do nothing
-                                                                                        bSelectionOriginalPos = selection[1].pos
-
-                                                                                        startbetterMoveToolFunction()
-                                                                                    )else(
-                                                                                        lastAxisConstraints = toolmode.axisconstraints
-                                                                                    )
-                                                                                )
                                                                             )
                                                                     )
                                                                 )
@@ -4757,7 +4710,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                                                                 testTimer.stop()
 
                                                                                 try(
-                                                                                    stopDetectingSubselectionChangesFunction()
+                                                                                    --stopDetectingSubselectionChangesFunction()
                                                                                 )catch()
 
                                                                             -- Lock the selection
@@ -4794,7 +4747,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                         testTimer.stop()
 
                                         try(
-                                            stopDetectingSubselectionChangesFunction()
+                                            --stopDetectingSubselectionChangesFunction()
                                         )catch()
 
                                     -- Lock the selection
@@ -4957,6 +4910,54 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                         )else(
                             toolWasStarted = false
                         )
+                )
+
+            -- Detect subselection changes
+
+                fn startDetectingSubselectionChangesFunction = (
+                		if selection.count == 1 then(
+                        if toolmode.commandmode == #move then(
+                            undo off(
+                                -- Editable poly
+
+                                    if (modPanel.getCurrentObject() as string) == "Editable Poly" then(
+                                        when select selection[1] changes id:#SubObj_SelectionChange do(
+                                            if subObjectLevelBeforeModifierParameterChange == subObjectLevel then( -- If not, the change registered was just moving to a different subObjectLevel
+                                                if (subObjectLevel == 1 and ((polyop.getVertSelection selection[1]).numberset) != 0) or ((subObjectLevel == 2 or subObjectLevel == 3) and ((polyop.getEdgeSelection selection[1]).numberset) != 0) or ((subObjectLevel == 4 or subObjectLevel == 5 ) and ((polyop.getVertSelection selection[1]).numberset) != 0) then(
+                                                    updateBSelectionPosOnFirstClickVariableFunction()
+                                                )
+                                            )
+                                        )
+                                    )
+
+                                -- Edit poly
+
+                                    if matchPattern (modPanel.getCurrentObject() as string) Pattern:"Edit_Poly:*" then(
+                                        when parameters selection[1] changes id:#SubObj_SelectionChange do(
+                                            if subObjectLevelBeforeModifierParameterChange == subObjectLevel then( -- If not, the change registered was just moving to a different subObjectLevel
+                                                if (subObjectLevel == 1 and (EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string != "#{}" and (EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string != subselectionOnLastRun) or ((subObjectLevel == 2 or subObjectLevel == 3) and (EditPolyMod.GetSelection $.Edit_Poly #Edge) as string != "#{}" and (EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string != subselectionOnLastRun) or ((subObjectLevel == 4 or subObjectLevel == 5) and (EditPolyMod.GetSelection $.Edit_Poly #Face) as string != "#{}" and (EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string != subselectionOnLastRun) then(
+                                                    -- Update subselectionOnLastRun variable
+
+                                                        if subObjectLevel == 1 then(
+                                                            subselectionOnLastRun = ((EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string)
+                                                        )
+
+                                                        if subObjectLevel == 2 or subObjectLevel == 3 then(
+                                                            subselectionOnLastRun = ((EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string)
+                                                        )
+
+                                                        if subObjectLevel == 4 or subObjectLevel == 5 then(
+                                                            subselectionOnLastRun = ((EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string)
+                                                        )
+
+                                                    updateBSelectionPosOnFirstClickVariableFunction()
+                                                )
+                                            )
+                                        )
+                                    )
+                            ) -- (Undo end bracket)
+                        )
+                    )
                 )
 
         -- Timers
@@ -5621,15 +5622,17 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                                 -- Add callback to change variable on undo or redo, so that selection changes caused by undoing or redoing don't cause the tool to start
 
-                                    callBacks.RemoveScripts id:#once
+                                    callBacks.RemoveScripts id:#changeVariableOnUndoOrRedo
 
-                                    callBacks.addScript #sceneUndo "changeVariableOnUndoOrRedo()" id:#once
+                                    callBacks.addScript #sceneUndo "changeVariableOnUndoOrRedo()" id:#changeVariableOnUndoOrRedo
 
-                                    callBacks.addScript #sceneRedo "changeVariableOnUndoOrRedo()" id:#once
+                                    callBacks.addScript #sceneRedo "changeVariableOnUndoOrRedo()" id:#changeVariableOnUndoOrRedo
 
                                 units.DisplayType = #generic
 
                                 -- Variables
+
+                                    userHasDraggedSubselection = false
 
                                     -- Define subObjectCountOnLastRun variable
 
@@ -5846,7 +5849,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                     -- Detect Subselection changes
 
                                         try(
-                                            stopDetectingSubselectionChangesFunction()
+                                            --stopDetectingSubselectionChangesFunction()
                                         )catch()
 
                                 -- Set the grid to default
@@ -5885,11 +5888,15 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                                             BetterToolsDetectIfUndoOrRedoMadeNoChangeToSelectionSetTimer.start()
 
-                                            testTimer.start()
-
                                             if not subObjectLevelIsZero() then(
                                                 subObjectLevelBeforeModifierParameterChange = subObjectLevel
                                             )
+
+                                            -- Add callback to update bSelectionPosOnFirstClick variable when the subselection changes
+
+                                                startDetectingSubselectionChangesFunction()
+
+                                            testTimer.start()
 
                                         BetterToolsGetWorldPointFromHWNDsTimer.start()
                                     )
@@ -5901,7 +5908,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                         testTimer.stop()
 
                                         try(
-                                            stopDetectingSubselectionChangesFunction()
+                                            --stopDetectingSubselectionChangesFunction()
                                         )catch()
 
                                     -- Lock the selection if it isn't already
@@ -5916,6 +5923,14 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                                     BetterToolsStartToolWhenMouseIsClickedTimer.start()
                                 )
+
+                                -- Add callback to update bSelectionPosOnFirstClick variable when the selection changes. This doesn't need to happen all the time, but we keep it running for the sake of simplicity as it shouldn't really affect performance.
+
+                                    -- Base object
+
+                                        callBacks.RemoveScripts id:#selectionSetChanged
+
+                                        callBacks.addScript #selectionSetChanged "updateBSelectionPosOnFirstClickVariableFunction()" id:#selectionSetChanged
                             )catch(
                                 BetterToolsStartMoveSessionTimer.stop()
                             )
@@ -5947,28 +5962,6 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                     callBacks.addScript #sceneRedo "redoTwiceIfRelevantFunction(callbacks.notificationParam())" id:#redo
                 )
 
-        -- Timers
-
-            -- BetterToolsStartMoveSessionTimer
-
-                global BetterToolsStartMoveSessionTimer = dotNetObject "System.Windows.Forms.Timer"
-                dotnet.addEventHandler BetterToolsStartMoveSessionTimer "tick" startMoveSessionFunction
-                BetterToolsStartMoveSessionTimer.interval = 100
-
-            -- BetterToolsUndoTimer
-
-                global BetterToolsUndoTimer = dotNetObject "System.Windows.Forms.Timer"
-                dotnet.addEventHandler BetterToolsUndoTimer "tick" undoFunction
-                BetterToolsUndoTimer.interval = 1
-
-            -- BetterToolsUndoTimer
-
-            global BetterToolsRedoTimer = dotNetObject "System.Windows.Forms.Timer"
-            dotnet.addEventHandler BetterToolsRedoTimer "tick" redoFunction
-            BetterToolsRedoTimer.interval = 1
-
-        -- Callbacks
-
             -- Undo twice if relevant
 
                 fn undoTwiceIfRelevantFunction text = (
@@ -5997,13 +5990,45 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                     )
                 )
 
-            callBacks.RemoveScripts id:#bye
+        -- Timers
 
-            callBacks.addScript #sceneUndo "undoTwiceIfRelevantFunction(callbacks.notificationParam())" id:#bye
+            -- BetterToolsStartMoveSessionTimer
 
-            callBacks.RemoveScripts id:#redo
+                global BetterToolsStartMoveSessionTimer = dotNetObject "System.Windows.Forms.Timer"
+                dotnet.addEventHandler BetterToolsStartMoveSessionTimer "tick" startMoveSessionFunction
+                BetterToolsStartMoveSessionTimer.interval = 100
 
-            callBacks.addScript #sceneRedo "redoTwiceIfRelevantFunction(callbacks.notificationParam())" id:#redo
+            -- BetterToolsUndoTimer
+
+                global BetterToolsUndoTimer = dotNetObject "System.Windows.Forms.Timer"
+                dotnet.addEventHandler BetterToolsUndoTimer "tick" undoFunction
+                BetterToolsUndoTimer.interval = 1
+
+            -- BetterToolsUndoTimer
+
+            global BetterToolsRedoTimer = dotNetObject "System.Windows.Forms.Timer"
+            dotnet.addEventHandler BetterToolsRedoTimer "tick" redoFunction
+            BetterToolsRedoTimer.interval = 1
+
+        -- Callbacks
+
+            -- Update selectionAutoLockPreference variable
+
+                selectionAutoLockPreference = (if (getINISetting betterMoveIni "BetterMove" "Selection Auto-Lock") == "true" then true else false)
+
+            -- Remove callbacks
+
+                callBacks.RemoveScripts id:#bye
+
+                callBacks.RemoveScripts id:#redo
+
+            -- Readd callbacks if selectionAutoLockPreference is true
+
+                if selectionAutoLockPreference == true then(
+                    callBacks.addScript #sceneUndo "undoTwiceIfRelevantFunction(callbacks.notificationParam())" id:#bye
+
+                    callBacks.addScript #sceneRedo "redoTwiceIfRelevantFunction(callbacks.notificationParam())" id:#redo
+                )
 
         -- Start timers
 
