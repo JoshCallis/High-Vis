@@ -1,16 +1,12 @@
 -- Progress
 
     -- Need to implement code so that when world point == an existing reference when another reference is already being inferred to, the reference below the mouse becomes the new active reference
-    -- Need code to stop first reference point being overwritten once the 6th reference is made, and instead to skip it and overwrite reference two instead, since reference one is the original click position and will always be relevant.
     -- When no reference is active, dimensions should refer to reference 1 (the original object location), not the last used reference if it is not reference 1
     -- c.modifiers[#Edit_Poly]-type things might need to be rewritten—what happens if there are multiple of the given modifiers on the object. If it chooses the top one, for example, then we have a problem if we're operating on not the top version of the given modifier.
     -- Holding shift should lock to nearest axis, not whatever direction it is currently moved in
     -- If mouse is moved into a position where z reference is activated before tool starts, the object doesn't move. This is because mouse is snapped to the main grid which is horizontal, so worldPointFromHWNDSecondary reading shows z position hasn't changed from the originall position, and z reference wants to only move on z axis.
-    -- Need code to add all layer names to the list of toolTips, as one potential toolTip reflects one of any of the layer names. Seems worth the computational saving to just use whatever layer names exist at start of move session, rather than constantly screening for layers created during session. Actually, should maybe screen every few seconds or something.
     -- Need to put correct units in the displayDistance rollout (currently it is always mm)
-    -- Distance displayed is sightly wrong. Need to figure out why and fix.
-    -- Need code to factor in screen size for dialogs
-    -- If function detects undo or redo has just occurred, it doesn't do anything so runs next time as though the user has changed selection. Need to add code here.
+    -- Distance displayed is sightly wrong sometimes. Need to figure out why and fix.
     -- Objects that have been scaled move incorrectly in subobject mode until their xForms are reset. Doesn't seem to happen when in a modifier, just when in the base object.
 
 -- Useful pieces of code
@@ -529,6 +525,14 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
             include "$scripts/Startup/BetterTools/BetterMove.ms"
 
         -- Functions
+
+            -- Round number
+
+                fn roundNumber numberToRound numberOfDP = (
+                    mult = 10.0 ^ numberOfDP
+
+                    (floor ((numberToRound * mult) + 0.5)) / mult
+                )
 
             -- Get pivot position
 
@@ -1141,8 +1145,6 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                             bSelectionPosOnFirstClick = $.pos
                         )else(
                             bSelectionPosOnFirstClick = getPivotPosition()
-
-                            --print bSelectionPosOnFirstClick
                         )
                     )
                 )
@@ -1215,14 +1217,6 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                 global getWinClassGlobalVariable = GetWinClass()
 
-            -- Round number
-
-                fn roundNumber numberToRound numberOfDP = (
-                    mult = 10.0 ^ numberOfDP
-
-                    (floor ((numberToRound * mult) + 0.5)) / mult
-                )
-
             -- Reference
 
                 -- Create reference
@@ -1234,7 +1228,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                 if lastCreatedReferenceNumber != 5 then(
                                     lastCreatedReferenceNumber = lastCreatedReferenceNumber + 1
                                 )else(
-                                    lastCreatedReferenceNumber = 1
+                                    lastCreatedReferenceNumber = 2
                                 )
 
                                 if totalNumberOfReferences != 5 then(
@@ -3463,7 +3457,6 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                 if hi == false and positionDistanceEditTextBoolean == false then(
 
                                     if firstClickPos == undefined then(
-                                    print "Bye"
                                         if startMovingFromSelectionsPivot == false then(
                                             firstClickPos = mousePosOnToolStart
                                         )else(
@@ -3481,8 +3474,6 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                             for a = 1 to $selection.count do(
                                                 append selectionPositionsRelativeToFirstClickPointArray [(selection[a].pos[1] - firstClickPos[1]), (selection[a].pos[2] - firstClickPos[2]), (selection[a].pos[3] - firstClickPos[3])]
                                             )
-                                    )else(
-                                        print "Hi"
                                     )
 
                                     if (clickno == 0) then(
@@ -3626,7 +3617,12 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                             maxWindowHWND = windows.getMAXHWND()
                             maxWindowSizeAndPosition = ::getWinClassGlobalVariable.GetWindowPosAndSize maxWindowHWND
-                            bottomRightOfWindow = [(maxWindowSizeAndPosition[1] + maxWindowSizeAndPosition[3]) - 847, (maxWindowSizeAndPosition[2] + maxWindowSizeAndPosition[4]) - 60]
+
+                            if maxWindowSizeAndPosition[1] == -8 and maxWindowSizeAndPosition[2] == -8 then(
+                                bottomRightOfWindow = [(maxWindowSizeAndPosition[1] + maxWindowSizeAndPosition[3]) - 830, (maxWindowSizeAndPosition[2] + maxWindowSizeAndPosition[4]) - 61]
+                            )else(
+                                bottomRightOfWindow = [(maxWindowSizeAndPosition[1] + maxWindowSizeAndPosition[3]) - 847, (maxWindowSizeAndPosition[2] + maxWindowSizeAndPosition[4]) - 61]
+                            )
 
                             createDialog enterDistanceRollout height: 23 width: 256 pos:[bottomRightOfWindow[1]+4000,bottomRightOfWindow[2]+4000] modal:false style:#()
 
@@ -3872,6 +3868,8 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                             )catch()
 
                         mousePos2D = undefined
+
+                        subselectionOnLastRun = undefined
 
                         -- Define selectionOnLastRound variable
 
@@ -4265,7 +4263,6 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                                                                         if objectWasUnderMouseOnFirstClick == true or selLocked() then(
                                                                             -- Run the start tool function
-                                                                            print 1
 
                                                                                 -- Stop timers
 
@@ -4357,39 +4354,21 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                                                                             -- Variables
 
-                                                                                -- Define HWNDOnCurrentRun variable
-
-                                                                                    maxChildrenHWNDs = (windows.getChildrenHWND #max)
-
-                                                                                    for a = 1 to maxChildrenHWNDs.count do(
-                                                                                        if maxChildrenHWNDs[a][4] == "Static" and maxChildrenHWNDs[a][5] == "X:" and maxChildrenHWNDs[a][6] == 0P then(
-                                                                                            HWNDOnCurrentRun = [((maxChildrenHWNDs[a + 3][5]) as float),((maxChildrenHWNDs[a + 9][5]) as float),((maxChildrenHWNDs[a + 15][5]) as float)]
-
-                                                                                            exit
-                                                                                        )
-                                                                                    )
-
-                                                                            -- If the current selection position is different from the last, and they are not just different because the last hasn't been defined yet due to this being the first run, then start the tool
-
-                                                                                if HWNDOnCurrentRun != HWNDOnLastRun and HWNDOnCurrentRun != undefined and HWNDOnLastRun != undefined then(
-                                                                                    userHasDraggedSubselection = true
-                                                                                )
-
-                                                                            -- Variables
-
                                                                                 -- Define HWNDOnLastRun variable
 
-                                                                                    maxChildrenHWNDs = (windows.getChildrenHWND #max)
+                                                                                    if HWNDOnLastRun == undefined then(
+                                                                                        maxChildrenHWNDs = (windows.getChildrenHWND #max)
 
-                                                                                    for a = 1 to maxChildrenHWNDs.count do(
-                                                                                        if maxChildrenHWNDs[a][4] == "Static" and maxChildrenHWNDs[a][5] == "X:" and maxChildrenHWNDs[a][6] == 0P then(
-                                                                                            if subObjectLevelIsZero() then(
-                                                                                                HWNDOnLastRun = [((maxChildrenHWNDs[a + 3][5]) as float),((maxChildrenHWNDs[a + 9][5]) as float),((maxChildrenHWNDs[a + 15][5]) as float)]
-                                                                                            )else(
-                                                                                                HWNDOnLastRun = getPivotPosition()
+                                                                                        for a = 1 to maxChildrenHWNDs.count do(
+                                                                                            if maxChildrenHWNDs[a][4] == "Static" and maxChildrenHWNDs[a][5] == "X:" and maxChildrenHWNDs[a][6] == 0P then(
+                                                                                                if subObjectLevelIsZero() then(
+                                                                                                    HWNDOnLastRun = [((maxChildrenHWNDs[a + 3][5]) as float),((maxChildrenHWNDs[a + 9][5]) as float),((maxChildrenHWNDs[a + 15][5]) as float)]
+                                                                                                )else(
+                                                                                                    HWNDOnLastRun = getPivotPosition()
+                                                                                                )
+
+                                                                                                exit
                                                                                             )
-
-                                                                                            exit
                                                                                         )
                                                                                     )
                                                                     )
@@ -4398,14 +4377,35 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                                                                     if not userIsClickingOnEitherSelectionOrNothing() then(
                                                                         if mouseHasBeenClicked == true then(
-                                                                            if userHasDraggedSubselection == false then(
+                                                                            -- Variables
+
+                                                                                mouseHasBeenClicked = false
+
+                                                                                -- Define HWNDOnCurrentRun variable
+
+                                                                                    maxChildrenHWNDs = (windows.getChildrenHWND #max)
+
+                                                                                    for a = 1 to maxChildrenHWNDs.count do(
+                                                                                        if maxChildrenHWNDs[a][4] == "Static" and maxChildrenHWNDs[a][5] == "X:" and maxChildrenHWNDs[a][6] == 0P then(
+                                                                                            if subObjectLevelIsZero() then(
+                                                                                                HWNDOnCurrentRun = [((maxChildrenHWNDs[a + 3][5]) as float),((maxChildrenHWNDs[a + 9][5]) as float),((maxChildrenHWNDs[a + 15][5]) as float)]
+                                                                                            )else(
+                                                                                                HWNDOnCurrentRun = getPivotPosition()
+                                                                                            )
+
+                                                                                            exit
+                                                                                        )
+                                                                                    )
+
+                                                                            if (HWNDOnCurrentRun as string) == (HWNDOnLastRun as string) and HWNDOnCurrentRun != undefined and HWNDOnLastRun != undefined then(
                                                                                 -- Variables
 
+                                                                                    HWNDOnCurrentRun = undefined
+                                                                                    HWNDOnLastRun = undefined
                                                                                     mouseHasBeenClicked = false
 
                                                                                 if somethingMoveableIsSelected() then(
                                                                                     -- Run the start tool function
-                                                                                    print 2
 
                                                                                         -- Stop timers
 
@@ -4476,6 +4476,11 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                                                                             lastAxisConstraints = toolmode.axisconstraints
                                                                                         )
                                                                                 )
+                                                                            )else(
+                                                                                -- Variables
+
+                                                                                    HWNDOnCurrentRun = undefined
+                                                                                    HWNDOnLastRun = undefined
                                                                             )
                                                                         )
                                                                     )
@@ -4496,7 +4501,6 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                                                                                     if bSelectionPosOnFirstClick == $.pos or (((modPanel.getCurrentObject() as string) != "Editable Poly") and ((modPanel.getCurrentObject() as string) != "Editable Mesh")) then(
                                                                                         -- Run the start tool function
-                                                                                        print 3
 
                                                                                             testTimer.stop()
 
@@ -4585,7 +4589,6 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                                                                             if bSelectionPosOnFirstClick == getPivotPosition() then(
                                                                                 -- Run the start tool function
-                                                                                print 4
 
                                                                                     testTimer.stop()
 
@@ -4935,23 +4938,24 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                     if matchPattern (modPanel.getCurrentObject() as string) Pattern:"Edit_Poly:*" then(
                                         when parameters selection[1] changes id:#SubObj_SelectionChange do(
                                             if subObjectLevelBeforeModifierParameterChange == subObjectLevel then( -- If not, the change registered was just moving to a different subObjectLevel
-                                                if (subObjectLevel == 1 and (EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string != "#{}" and (EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string != subselectionOnLastRun) or ((subObjectLevel == 2 or subObjectLevel == 3) and (EditPolyMod.GetSelection $.Edit_Poly #Edge) as string != "#{}" and (EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string != subselectionOnLastRun) or ((subObjectLevel == 4 or subObjectLevel == 5) and (EditPolyMod.GetSelection $.Edit_Poly #Face) as string != "#{}" and (EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string != subselectionOnLastRun) then(
-                                                    -- Update subselectionOnLastRun variable
-
-                                                        if subObjectLevel == 1 then(
-                                                            subselectionOnLastRun = ((EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string)
-                                                        )
-
-                                                        if subObjectLevel == 2 or subObjectLevel == 3 then(
-                                                            subselectionOnLastRun = ((EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string)
-                                                        )
-
-                                                        if subObjectLevel == 4 or subObjectLevel == 5 then(
-                                                            subselectionOnLastRun = ((EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string)
-                                                        )
-
+                                                if (subObjectLevel == 1 and (EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string != "#{}" and (EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string != subselectionOnLastRun) or ((subObjectLevel == 2 or subObjectLevel == 3) and (EditPolyMod.GetSelection $.Edit_Poly #Edge) as string != "#{}" and (EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string != subselectionOnLastRun) or ((subObjectLevel == 4 or subObjectLevel == 5) and
+                                                (EditPolyMod.GetSelection $.Edit_Poly #Face) as string != "#{}" and (EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string != subselectionOnLastRun) then(
                                                     updateBSelectionPosOnFirstClickVariableFunction()
                                                 )
+
+                                                -- Update subselectionOnLastRun variable
+
+                                                    if subObjectLevel == 1 then(
+                                                        subselectionOnLastRun = ((EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string)
+                                                    )
+
+                                                    if subObjectLevel == 2 or subObjectLevel == 3 then(
+                                                        subselectionOnLastRun = ((EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string)
+                                                    )
+
+                                                    if subObjectLevel == 4 or subObjectLevel == 5 then(
+                                                        subselectionOnLastRun = ((EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string)
+                                                    )
                                             )
                                         )
                                     )
@@ -5631,6 +5635,8 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                 units.DisplayType = #generic
 
                                 -- Variables
+
+                                    subselectionOnLastRun = undefined
 
                                     userHasDraggedSubselection = false
 
