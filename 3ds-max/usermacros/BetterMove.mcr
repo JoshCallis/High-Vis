@@ -4,7 +4,6 @@
     -- When no reference is active, dimensions should refer to reference 1 (the original object location), not the last used reference if it is not reference 1
     -- c.modifiers[#Edit_Poly]-type things might need to be rewritten—what happens if there are multiple of the given modifiers on the object. If it chooses the top one, for example, then we have a problem if we're operating on not the top version of the given modifier.
     -- Holding shift should lock to nearest axis, not whatever direction it is currently moved in
-    -- If mouse is moved into a position where z reference is activated before tool starts, the object doesn't move. This is because mouse is snapped to the main grid which is horizontal, so worldPointFromHWNDSecondary reading shows z position hasn't changed from the originall position, and z reference wants to only move on z axis.
     -- Need to put correct units in the displayDistance rollout (currently it is always mm)
     -- Distance displayed is sightly wrong sometimes. Need to figure out why and fix.
     -- Objects that have been scaled move incorrectly in subobject mode until their xForms are reset. Doesn't seem to happen when in a modifier, just when in the base object.
@@ -34,6 +33,10 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                 local vertsOfEdge
                 local vertSel
                 local vertsOfFace
+
+            local snapsHaveBeenChanged = false
+
+            local movingBeforeFirstFreeMove = false
 
             local subselectionOnLastRun
 
@@ -142,7 +145,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                 local selectionChanged = false
 
-                local mousePos2D = undefined
+                local mousePos2DOnFirstClick = undefined
 
                 local stopMovingOnMouseUnclicked = false
 
@@ -156,6 +159,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                 local maxChildrenHWNDs
                 local worldPointFromHWND
                 local worldPointFromHWNDSecondary = [0,0,0] -- Need to give this a value, as the function defines it in a try-catch statement so in some cases might not define it at all
+                local worldPointFromHWNDSecondaryOnFirstCLick = [0,0,0]
 
                 local onMousePointFunctionWasRunOnStart = false
 
@@ -928,9 +932,9 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                             -- Variables
 
-                                referenceEndPointSecondary = getNodeByName "Reference Point, End, Locked"
+                                 referenceEndPointLocked = getNodeByName "Reference Point, End, Locked"
 
-                                referenceEndPointLocked = getNodeByName "Reference Point, End, Secondary"
+                                referenceEndPointSecondary = getNodeByName "Reference Point, End, Secondary"
 
                                 referenceEndPointX = getNodeByName "Reference Point, End, X"
 
@@ -1146,6 +1150,23 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                         )else(
                             bSelectionPosOnFirstClick = getPivotPosition()
                         )
+
+                        -- Activate tiny grid
+
+                            -- Ensure grid snap is on so that if mouse moves before tool starts, we're constantly snapped to the active grid's points and HWND readings are accurate, meaning the object is moved to the right place on tool start
+
+                                snapMode.setOSnapItemActive 4 1 true
+
+                                snapMode.display = false
+
+                            -- Set grid sizes to really small
+
+                                $BetterToolsMainGrid.grid = .125
+                                $BetterToolsXGrid.grid = .125
+                                $BetterToolsYGrid.grid = .125
+                                $BetterToolsZGrid.grid = .125
+
+                        snapsHaveBeenChanged = true
                     )
                 )
 
@@ -1706,505 +1727,234 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                                             -- Move
 
-                                                -- If this is the first move and an reference is to be snapped to, then don't move, as it will move to the wrong place. This has something to do with the mouse's position on the grids, which we should try to solve later, but currently we use this to at least treat the symptoms.
+                                                -- If this is the first move and a reference is to be snapped to, then don't move, as it will move to the wrong place. This has something to do with the mouse's position on the grids, which we should try to solve later, but currently we use this to at least treat the symptoms.
 
                                                     if ((snapToXReference == false and snapToYReference == false and snapToZReference == false) or snapMode.node == undefined) or firstMove == false then(
-                                                        -- Determine where to move
+                                                        -- If moving before the first freemove (to put object into correct postion on tool start if the user has moved the mouse), don't move if snapping to the z reference, as due to not having used the z grid, the position will be wrong. Note: it seems ov should be true anyway if this is the case, and therefore that this conditional is redundant, but in practice this isn't the case. I don't know why not (but haven't really looked into it).
 
-                                                            if (snapToXReference == true or snapToYReference == true or snapToZReference == true) and snapMode.node == undefined then(
-                                                                -- If only one reference is being snapped to...
+                                                            if not (snapToZReference == true and snapToXReference == false and snapToYReference == false) or movingBeforeFirstFreeMove == false then(
+                                                                -- Determine where to move
 
-                                                                    if snapToXReference == true and snapToYReference == false and snapToZReference == false then(
-                                                                        -- Grid
+                                                                    if (snapToXReference == true or snapToYReference == true or snapToZReference == true) and snapMode.node == undefined then(
+                                                                        -- If only one reference is being snapped to...
 
-                                                                            $BetterToolsXGrid.pos = worldPointOnInferArray[ReferenceNumberToSnapToX]
+                                                                            if snapToXReference == true and snapToYReference == false and snapToZReference == false then(
+                                                                                -- Grid
 
-                                                                            activeGrid = $BetterToolsXGrid
+                                                                                    $BetterToolsXGrid.pos = worldPointOnInferArray[ReferenceNumberToSnapToX]
 
-                                                                        -- Determine whether to snap to a secondary reference
+                                                                                    activeGrid = $BetterToolsXGrid
 
-                                                                            if totalNumberOfReferences >= 2 then(
-                                                                                for a = 1 to totalNumberOfReferences do(
-                                                                                    append secondaryReferenceCoordinatesArray (gw.transPoint [worldPointOnInferArray[a][1],worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]])
-                                                                                )
+                                                                                -- Determine whether to snap to a secondary reference
 
-                                                                                for a = 1 to secondaryReferenceCoordinatesArray.count do(
-                                                                                    matchWasFound = false
-                                                                                    i = secondaryReferenceCoordinatesArray[a]
+                                                                                    if totalNumberOfReferences >= 2 then(
+                                                                                        for a = 1 to totalNumberOfReferences do(
+                                                                                            append secondaryReferenceCoordinatesArray (gw.transPoint [worldPointOnInferArray[a][1],worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]])
+                                                                                        )
 
-                                                                                    if i[1] >= currentMousePositionCoordinates[1]-snapRadius and i[1] <= currentMousePositionCoordinates[1]+snapRadius and i[2] >= currentMousePositionCoordinates[2]-snapRadius and i[2] <= currentMousePositionCoordinates[2]+snapRadius then(
-                                                                                        matchWasFound = true
+                                                                                        for a = 1 to secondaryReferenceCoordinatesArray.count do(
+                                                                                            matchWasFound = false
+                                                                                            i = secondaryReferenceCoordinatesArray[a]
 
-                                                                                        referenceNumberToSnapToSecondary = a
-                                                                                    )
+                                                                                            if i[1] >= currentMousePositionCoordinates[1]-snapRadius and i[1] <= currentMousePositionCoordinates[1]+snapRadius and i[2] >= currentMousePositionCoordinates[2]-snapRadius and i[2] <= currentMousePositionCoordinates[2]+snapRadius then(
+                                                                                                matchWasFound = true
 
-                                                                                    if matchWasFound == true then(
-                                                                                        if referenceNumberToSnapToSecondary == undefined then(
-                                                                                            referenceNumberToSnapToSecondary = a
-                                                                                        )else(
-                                                                                            if lastSecondaryReferenceNumberSnappedTo == a then(
                                                                                                 referenceNumberToSnapToSecondary = a
+                                                                                            )
+
+                                                                                            if matchWasFound == true then(
+                                                                                                if referenceNumberToSnapToSecondary == undefined then(
+                                                                                                    referenceNumberToSnapToSecondary = a
+                                                                                                )else(
+                                                                                                    if lastSecondaryReferenceNumberSnappedTo == a then(
+                                                                                                        referenceNumberToSnapToSecondary = a
+                                                                                                    )
+                                                                                                )
                                                                                             )
                                                                                         )
                                                                                     )
-                                                                                )
-                                                                            )
 
-                                                                        -- Reference Lines + bPositionFinal
+                                                                                -- Reference Lines + bPositionFinal
 
-                                                                            referenceLineLocked.pos = worldPointOnInferArray[ReferenceNumberToSnapToX]
-                                                                            lastReferenceNumberSnappedToAny = referenceNumberToSnapToX
+                                                                                    referenceLineLocked.pos = worldPointOnInferArray[ReferenceNumberToSnapToX]
+                                                                                    lastReferenceNumberSnappedToAny = referenceNumberToSnapToX
 
-                                                                            if referenceNumberToSnapToSecondary == undefined then(
-                                                                                if distanceEntered != undefined then(
-                                                                                    -- If the object is being moved in a negative direction, convert the distance entered into a negative value
+                                                                                    if referenceNumberToSnapToSecondary == undefined then(
+                                                                                        if distanceEntered != undefined then(
+                                                                                            -- If the object is being moved in a negative direction, convert the distance entered into a negative value
 
-                                                                                        if xMousePosCurrent < worldPointOnInferArray[ReferenceNumberToSnapToX][1] then(
-                                                                                            distanceEnteredFinal = (- distanceEntered)
+                                                                                                if xMousePosCurrent < worldPointOnInferArray[ReferenceNumberToSnapToX][1] then(
+                                                                                                    distanceEnteredFinal = (- distanceEntered)
+                                                                                                )else(
+                                                                                                    distanceEnteredFinal = distanceEntered
+                                                                                                )
+
+                                                                                            bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToX][1] + distanceEnteredFinal,worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
                                                                                         )else(
-                                                                                            distanceEnteredFinal = distanceEntered
+                                                                                            referenceLineX.pos = worldPointOnInferArray[ReferenceNumberToSnapToX]
+                                                                                            referenceEndPointX.pos = [xMousePosCurrent,worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
+
+                                                                                            unhide referenceLineX
+                                                                                            hide referenceLineY
+                                                                                            hide referenceLineZ
+                                                                                            hide referenceLineSecondary
+
+                                                                                            bPositionFinal = [xMousePosCurrent,worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
                                                                                         )
-
-                                                                                    bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToX][1] + distanceEnteredFinal,worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
-                                                                                )else(
-                                                                                    referenceLineX.pos = worldPointOnInferArray[ReferenceNumberToSnapToX]
-                                                                                    referenceEndPointX.pos = [xMousePosCurrent,worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
-
-                                                                                    unhide referenceLineX
-                                                                                    hide referenceLineY
-                                                                                    hide referenceLineZ
-                                                                                    hide referenceLineSecondary
-
-                                                                                    bPositionFinal = [xMousePosCurrent,worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
-                                                                                )
-                                                                            )else(
-                                                                                referenceLineX.pos = worldPointOnInferArray[ReferenceNumberToSnapToX]
-                                                                                referenceEndPointX.pos = [worldPointOnInferArray[ReferenceNumberToSnapToSecondary][1],worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
-                                                                                referenceLineSecondary.pos = worldPointOnInferArray[ReferenceNumberToSnapToSecondary]
-                                                                                referenceEndPointSecondary.pos = [worldPointOnInferArray[ReferenceNumberToSnapToSecondary][1],worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
-
-                                                                                unhide referenceLineX
-                                                                                hide referenceLineY
-                                                                                hide referenceLineZ
-                                                                                unhide referenceLineSecondary
-
-                                                                                bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToSecondary][1],worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
-                                                                            )
-
-                                                                        -- Define last used reference variable
-
-                                                                            lastUsedReference = "X"
-                                                                    )
-
-                                                                    if snapToYReference == true and snapToXReference == false and snapToZReference == false then(
-                                                                        -- Grid
-
-                                                                            $BetterToolsYGrid.pos = worldPointOnInferArray[ReferenceNumberToSnapToY]
-
-                                                                            activeGrid = $BetterToolsYGrid
-
-                                                                        -- Determine whether to snap to a secondary reference
-
-                                                                            if totalNumberOfReferences >= 2 then(
-                                                                                for a = 1 to totalNumberOfReferences do(
-                                                                                    append secondaryReferenceCoordinatesArray (gw.transPoint [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[a][2],worldPointOnInferArray[ReferenceNumberToSnapToY][3]])
-                                                                                )
-
-                                                                                for a = 1 to secondaryReferenceCoordinatesArray.count do(
-                                                                                    matchWasFound = false
-                                                                                    i = secondaryReferenceCoordinatesArray[a]
-
-                                                                                    if i[1] >= currentMousePositionCoordinates[1]-snapRadius and i[1] <= currentMousePositionCoordinates[1]+snapRadius and i[2] >= currentMousePositionCoordinates[2]-snapRadius and i[2] <= currentMousePositionCoordinates[2]+snapRadius then(
-                                                                                        matchWasFound = true
-
-                                                                                        referenceNumberToSnapToSecondary = a
-                                                                                    )
-
-                                                                                    if matchWasFound == true then(
-                                                                                        if referenceNumberToSnapToSecondary == undefined then(
-                                                                                            referenceNumberToSnapToSecondary = a
-                                                                                        )else(
-                                                                                            if lastSecondaryReferenceNumberSnappedTo == a then(
-                                                                                                referenceNumberToSnapToSecondary = a
-                                                                                            )
-                                                                                        )
-                                                                                    )
-                                                                                )
-                                                                            )
-
-                                                                        -- Reference lines + bPositionFinal
-
-                                                                            referenceLineLocked.pos = worldPointOnInferArray[ReferenceNumberToSnapToY]
-                                                                            lastReferenceNumberSnappedToAny = referenceNumberToSnapToY
-
-                                                                            if referenceNumberToSnapToSecondary == undefined then(
-                                                                                if distanceEntered != undefined then(
-                                                                                    -- If the objects is being moved in the negative direction, convert the distance entered into a negative value
-
-                                                                                        if yMousePosCurrent < worldPointOnInferArray[ReferenceNumberToSnapToY][2] then(
-                                                                                            distanceEnteredFinal = (- distanceEntered)
-                                                                                        )else(
-                                                                                            distanceEnteredFinal = distanceEntered
-                                                                                        )
-
-                                                                                    bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[ReferenceNumberToSnapToY][2] + distanceEnteredFinal,worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
-                                                                                )else(
-                                                                                    referenceLineY.pos = worldPointOnInferArray[ReferenceNumberToSnapToY]
-                                                                                    referenceEndPointY.pos = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],yMousePosCurrent,worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
-
-                                                                                    hide referenceLineX
-                                                                                    unhide referenceLineY
-                                                                                    hide referenceLineZ
-                                                                                    hide referenceLineSecondary
-
-                                                                                    bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],yMousePosCurrent,worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
-                                                                                )
-                                                                            )else(
-                                                                                referenceLineY.pos = worldPointOnInferArray[ReferenceNumberToSnapToY]
-                                                                                referenceEndPointY.pos = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][2],worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
-                                                                                referenceLineSecondary.pos = worldPointOnInferArray[ReferenceNumberToSnapToSecondary]
-                                                                                referenceEndPointSecondary.pos = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][2],worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
-
-                                                                                hide referenceLineX
-                                                                                unhide referenceLineY
-                                                                                hide referenceLineZ
-                                                                                unhide referenceLineSecondary
-
-                                                                                bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][2],worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
-                                                                            )
-
-                                                                        -- Define last used reference variable
-
-                                                                            lastUsedReference = "Y"
-                                                                    )
-
-                                                                    if snapToZReference == true and snapToXReference == false and snapToYReference == false then(
-                                                                        -- Grid
-
-                                                                            $BetterToolsZGrid.pos = worldPointOnInferArray[ReferenceNumberToSnapToZ]
-
-                                                                            activeGrid = $BetterToolsZGrid
-
-                                                                        -- Determine whether to snap to a secondary reference
-
-                                                                            if totalNumberOfReferences >= 2 then(
-                                                                                for a = 1 to totalNumberOfReferences do(
-                                                                                    append secondaryReferenceCoordinatesArray (gw.transPoint [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[a][3]])
-                                                                                )
-
-                                                                                for a = 1 to secondaryReferenceCoordinatesArray.count do(
-                                                                                    matchWasFound = false
-                                                                                    i = secondaryReferenceCoordinatesArray[a]
-
-                                                                                    if i[1] >= currentMousePositionCoordinates[1]-snapRadius and i[1] <= currentMousePositionCoordinates[1]+snapRadius and i[2] >= currentMousePositionCoordinates[2]-snapRadius and i[2] <= currentMousePositionCoordinates[2]+snapRadius then(
-                                                                                        matchWasFound = true
-
-                                                                                        referenceNumberToSnapToSecondary = a
-                                                                                    )
-
-                                                                                    if matchWasFound == true then(
-                                                                                        if referenceNumberToSnapToSecondary == undefined then(
-                                                                                            referenceNumberToSnapToSecondary = a
-                                                                                        )else(
-                                                                                            if lastSecondaryReferenceNumberSnappedTo == a then(
-                                                                                                referenceNumberToSnapToSecondary = a
-                                                                                            )
-                                                                                        )
-                                                                                    )
-                                                                                )
-                                                                            )
-
-                                                                        -- Reference Lines + bPositionFinal
-
-                                                                            referenceLineLocked.pos = worldPointOnInferArray[ReferenceNumberToSnapToZ]
-                                                                            lastReferenceNumberSnappedToAny = referenceNumberToSnapToZ
-
-                                                                            if referenceNumberToSnapToSecondary == undefined then(
-                                                                                if distanceEntered != undefined then(
-                                                                                    -- If the objects is being moved in the negative direction, convert the distance entered into a negative value
-
-                                                                                        if zMousePosCurrent < worldPointOnInferArray[ReferenceNumberToSnapToZ][3] then(
-                                                                                            distanceEnteredFinal = (- distanceEntered)
-                                                                                        )else(
-                                                                                            distanceEnteredFinal = distanceEntered
-                                                                                        )
-
-                                                                                    bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[ReferenceNumberToSnapToZ][3] + distanceEnteredFinal]
-                                                                                )else(
-                                                                                    referenceLineZ.pos = worldPointOnInferArray[ReferenceNumberToSnapToZ]
-                                                                                    referenceEndPointZ.pos = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],zMousePosCurrent]
-
-                                                                                    hide referenceLineX
-                                                                                    hide referenceLineY
-                                                                                    unhide referenceLineZ
-                                                                                    hide referenceLineSecondary
-
-                                                                                    bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],zMousePosCurrent]
-                                                                                )
-                                                                            )else(
-                                                                                referenceLineZ.pos = worldPointOnInferArray[ReferenceNumberToSnapToZ]
-                                                                                referenceEndPointZ.pos = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][3]]
-                                                                                referenceLineSecondary.pos = worldPointOnInferArray[ReferenceNumberToSnapToSecondary]
-                                                                                referenceEndPointSecondary.pos = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][3]]
-
-                                                                                hide referenceLineX
-                                                                                hide referenceLineY
-                                                                                unhide referenceLineZ
-                                                                                unhide referenceLineSecondary
-
-                                                                                bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][3]]
-                                                                            )
-
-                                                                        -- Define last used reference variable
-
-                                                                            lastUsedReference = "Z"
-                                                                    )
-
-                                                                -- If two references are being snapped to...
-
-                                                                    if snapToXReference == true and snapToYReference == true and snapToZReference == false then(
-                                                                        -- Snap to both references if they share the same Z value but aren't the same reference, or else snap to whatever axis was last snapped to
-
-                                                                            if worldPointOnInferArray[ReferenceNumberToSnapToY][3] == worldPointOnInferArray[ReferenceNumberToSnapToX][3] and referenceNumberToSnapToY != referenceNumberToSnapToX then(
-                                                                                -- Reference Lines
-
+                                                                                    )else(
                                                                                         referenceLineX.pos = worldPointOnInferArray[ReferenceNumberToSnapToX]
-                                                                                        referenceEndPointX.pos = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
-
-                                                                                        referenceLineY.pos = worldPointOnInferArray[ReferenceNumberToSnapToY]
-                                                                                        referenceEndPointY.pos = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
+                                                                                        referenceEndPointX.pos = [worldPointOnInferArray[ReferenceNumberToSnapToSecondary][1],worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
+                                                                                        referenceLineSecondary.pos = worldPointOnInferArray[ReferenceNumberToSnapToSecondary]
+                                                                                        referenceEndPointSecondary.pos = [worldPointOnInferArray[ReferenceNumberToSnapToSecondary][1],worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
 
                                                                                         unhide referenceLineX
+                                                                                        hide referenceLineY
+                                                                                        hide referenceLineZ
+                                                                                        unhide referenceLineSecondary
+
+                                                                                        bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToSecondary][1],worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
+                                                                                    )
+
+                                                                                -- Define last used reference variable
+
+                                                                                    lastUsedReference = "X"
+                                                                            )
+
+                                                                            if snapToYReference == true and snapToXReference == false and snapToZReference == false then(
+                                                                                -- Grid
+
+                                                                                    $BetterToolsYGrid.pos = worldPointOnInferArray[ReferenceNumberToSnapToY]
+
+                                                                                    activeGrid = $BetterToolsYGrid
+
+                                                                                -- Determine whether to snap to a secondary reference
+
+                                                                                    if totalNumberOfReferences >= 2 then(
+                                                                                        for a = 1 to totalNumberOfReferences do(
+                                                                                            append secondaryReferenceCoordinatesArray (gw.transPoint [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[a][2],worldPointOnInferArray[ReferenceNumberToSnapToY][3]])
+                                                                                        )
+
+                                                                                        for a = 1 to secondaryReferenceCoordinatesArray.count do(
+                                                                                            matchWasFound = false
+                                                                                            i = secondaryReferenceCoordinatesArray[a]
+
+                                                                                            if i[1] >= currentMousePositionCoordinates[1]-snapRadius and i[1] <= currentMousePositionCoordinates[1]+snapRadius and i[2] >= currentMousePositionCoordinates[2]-snapRadius and i[2] <= currentMousePositionCoordinates[2]+snapRadius then(
+                                                                                                matchWasFound = true
+
+                                                                                                referenceNumberToSnapToSecondary = a
+                                                                                            )
+
+                                                                                            if matchWasFound == true then(
+                                                                                                if referenceNumberToSnapToSecondary == undefined then(
+                                                                                                    referenceNumberToSnapToSecondary = a
+                                                                                                )else(
+                                                                                                    if lastSecondaryReferenceNumberSnappedTo == a then(
+                                                                                                        referenceNumberToSnapToSecondary = a
+                                                                                                    )
+                                                                                                )
+                                                                                            )
+                                                                                        )
+                                                                                    )
+
+                                                                                -- Reference lines + bPositionFinal
+
+                                                                                    referenceLineLocked.pos = worldPointOnInferArray[ReferenceNumberToSnapToY]
+                                                                                    lastReferenceNumberSnappedToAny = referenceNumberToSnapToY
+
+                                                                                    if referenceNumberToSnapToSecondary == undefined then(
+                                                                                        if distanceEntered != undefined then(
+                                                                                            -- If the objects is being moved in the negative direction, convert the distance entered into a negative value
+
+                                                                                                if yMousePosCurrent < worldPointOnInferArray[ReferenceNumberToSnapToY][2] then(
+                                                                                                    distanceEnteredFinal = (- distanceEntered)
+                                                                                                )else(
+                                                                                                    distanceEnteredFinal = distanceEntered
+                                                                                                )
+
+                                                                                            bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[ReferenceNumberToSnapToY][2] + distanceEnteredFinal,worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
+                                                                                        )else(
+                                                                                            referenceLineY.pos = worldPointOnInferArray[ReferenceNumberToSnapToY]
+                                                                                            referenceEndPointY.pos = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],yMousePosCurrent,worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
+
+                                                                                            hide referenceLineX
+                                                                                            unhide referenceLineY
+                                                                                            hide referenceLineZ
+                                                                                            hide referenceLineSecondary
+
+                                                                                            bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],yMousePosCurrent,worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
+                                                                                        )
+                                                                                    )else(
+                                                                                        referenceLineY.pos = worldPointOnInferArray[ReferenceNumberToSnapToY]
+                                                                                        referenceEndPointY.pos = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][2],worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
+                                                                                        referenceLineSecondary.pos = worldPointOnInferArray[ReferenceNumberToSnapToSecondary]
+                                                                                        referenceEndPointSecondary.pos = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][2],worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
+
+                                                                                        hide referenceLineX
                                                                                         unhide referenceLineY
                                                                                         hide referenceLineZ
-                                                                                        hide referenceLineSecondary
+                                                                                        unhide referenceLineSecondary
 
-                                                                                bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
-                                                                            )else(
-                                                                                if lastUsedReference == "X" then(
-                                                                                    -- Determine whether to snap to a secondary reference
+                                                                                        bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][2],worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
+                                                                                    )
 
-                                                                                        if totalNumberOfReferences >= 2 then(
-                                                                                            for a = 1 to totalNumberOfReferences do(
-                                                                                                append secondaryReferenceCoordinatesArray (gw.transPoint [worldPointOnInferArray[a][1],worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]])
-                                                                                            )
+                                                                                -- Define last used reference variable
 
-                                                                                            for a = 1 to secondaryReferenceCoordinatesArray.count do(
-                                                                                                matchWasFound = false
-                                                                                                i = secondaryReferenceCoordinatesArray[a]
-
-                                                                                                if i[1] >= currentMousePositionCoordinates[1]-snapRadius and i[1] <= currentMousePositionCoordinates[1]+snapRadius and i[2] >= currentMousePositionCoordinates[2]-snapRadius and i[2] <= currentMousePositionCoordinates[2]+snapRadius then(
-                                                                                                    matchWasFound = true
-
-                                                                                                    referenceNumberToSnapToSecondary = a
-                                                                                                )
-
-                                                                                                if matchWasFound == true then(
-                                                                                                    if referenceNumberToSnapToSecondary == undefined then(
-                                                                                                        referenceNumberToSnapToSecondary = a
-                                                                                                    )else(
-                                                                                                        if lastSecondaryReferenceNumberSnappedTo == a then(
-                                                                                                            referenceNumberToSnapToSecondary = a
-                                                                                                        )
-                                                                                                    )
-                                                                                                )
-                                                                                            )
-                                                                                        )
-
-                                                                                    -- Reference Lines + bPositionFinal
-
-                                                                                        if referenceNumberToSnapToSecondary == undefined then(
-                                                                                            referenceLineX.pos = worldPointOnInferArray[ReferenceNumberToSnapToX]
-                                                                                            referenceEndPointX.pos = [xMousePosCurrent,worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
-
-                                                                                            unhide referenceLineX
-                                                                                            hide referenceLineY
-                                                                                            hide referenceLineZ
-                                                                                            hide referenceLineSecondary
-
-                                                                                            bPositionFinal = [xMousePosCurrent,worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
-                                                                                        )else(
-                                                                                            referenceLineX.pos = worldPointOnInferArray[ReferenceNumberToSnapToX]
-                                                                                            referenceEndPointX.pos = [worldPointOnInferArray[ReferenceNumberToSnapToSecondary][1],worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
-                                                                                            referenceLineSecondary.pos = worldPointOnInferArray[ReferenceNumberToSnapToSecondary]
-                                                                                            referenceEndPointSecondary.pos = [worldPointOnInferArray[ReferenceNumberToSnapToSecondary][1],worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
-
-                                                                                            unhide referenceLineX
-                                                                                            hide referenceLineY
-                                                                                            hide referenceLineZ
-                                                                                            unhide referenceLineSecondary
-
-                                                                                            bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToSecondary][1],worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
-                                                                                        )
-                                                                                )
-
-                                                                                if lastUsedReference == "Y" then(
-                                                                                    -- Determine whether to snap to a secondary reference
-
-                                                                                        if totalNumberOfReferences >= 2 then(
-                                                                                            for a = 1 to totalNumberOfReferences do(
-                                                                                                append secondaryReferenceCoordinatesArray (gw.transPoint [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[a][2],worldPointOnInferArray[ReferenceNumberToSnapToY][3]])
-                                                                                            )
-
-                                                                                            for a = 1 to secondaryReferenceCoordinatesArray.count do(
-                                                                                                matchWasFound = false
-                                                                                                i = secondaryReferenceCoordinatesArray[a]
-
-                                                                                                if i[1] >= currentMousePositionCoordinates[1]-snapRadius and i[1] <= currentMousePositionCoordinates[1]+snapRadius and i[2] >= currentMousePositionCoordinates[2]-snapRadius and i[2] <= currentMousePositionCoordinates[2]+snapRadius then(
-                                                                                                    matchWasFound = true
-
-                                                                                                    referenceNumberToSnapToSecondary = a
-                                                                                                )
-
-                                                                                                if matchWasFound == true then(
-                                                                                                    if referenceNumberToSnapToSecondary == undefined then(
-                                                                                                        referenceNumberToSnapToSecondary = a
-                                                                                                    )else(
-                                                                                                        if lastSecondaryReferenceNumberSnappedTo == a then(
-                                                                                                            referenceNumberToSnapToSecondary = a
-                                                                                                        )
-                                                                                                    )
-                                                                                                )
-                                                                                            )
-                                                                                        )
-
-                                                                                    -- Reference lines + bPositionFinal
-
-                                                                                        if referenceNumberToSnapToSecondary == undefined then(
-                                                                                            referenceLineY.pos = worldPointOnInferArray[ReferenceNumberToSnapToY]
-                                                                                            referenceEndPointY.pos = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],yMousePosCurrent,worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
-
-                                                                                            hide referenceLineX
-                                                                                            unhide referenceLineY
-                                                                                            hide referenceLineZ
-                                                                                            hide referenceLineSecondary
-
-                                                                                            bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],yMousePosCurrent,worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
-                                                                                        )else(
-                                                                                            referenceLineY.pos = worldPointOnInferArray[ReferenceNumberToSnapToY]
-                                                                                            referenceEndPointY.pos = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][2],worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
-                                                                                            referenceLineSecondary.pos = worldPointOnInferArray[ReferenceNumberToSnapToSecondary]
-                                                                                            referenceEndPointSecondary.pos = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][2],worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
-
-                                                                                            hide referenceLineX
-                                                                                            unhide referenceLineY
-                                                                                            hide referenceLineZ
-                                                                                            unhide referenceLineSecondary
-
-                                                                                            bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][2],worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
-                                                                                        )
-                                                                                )
+                                                                                    lastUsedReference = "Y"
                                                                             )
-                                                                    )
 
-                                                                    if snapToXReference == false and snapToYReference == true and snapToZReference == true then(
-                                                                        -- Snap to both references if they share the same X value but aren't the same reference, or else snap to whatever axis was last snapped to
+                                                                            if snapToZReference == true and snapToXReference == false and snapToYReference == false then(
+                                                                                -- Grid
 
-                                                                            if worldPointOnInferArray[ReferenceNumberToSnapToZ][1] == worldPointOnInferArray[ReferenceNumberToSnapToY][1] and referenceNumberToSnapToZ != referenceNumberToSnapToY then(
-                                                                                -- Reference Lines
+                                                                                    $BetterToolsZGrid.pos = worldPointOnInferArray[ReferenceNumberToSnapToZ]
 
-                                                                                    referenceLineY.pos = worldPointOnInferArray[ReferenceNumberToSnapToY]
-                                                                                    referenceEndPointY.pos = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
+                                                                                    activeGrid = $BetterToolsZGrid
 
-                                                                                    referenceLineZ.pos = worldPointOnInferArray[ReferenceNumberToSnapToZ]
-                                                                                    referenceEndPointZ.pos = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
+                                                                                -- Determine whether to snap to a secondary reference
 
-                                                                                    hide referenceLineX
-                                                                                    unhide referenceLineY
-                                                                                    unhide referenceLineZ
+                                                                                    if totalNumberOfReferences >= 2 then(
+                                                                                        for a = 1 to totalNumberOfReferences do(
+                                                                                            append secondaryReferenceCoordinatesArray (gw.transPoint [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[a][3]])
+                                                                                        )
 
-                                                                                bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
-                                                                            )else(
-                                                                                if lastUsedReference == "Y" then(
-                                                                                    -- Determine whether to snap to a secondary reference
+                                                                                        for a = 1 to secondaryReferenceCoordinatesArray.count do(
+                                                                                            matchWasFound = false
+                                                                                            i = secondaryReferenceCoordinatesArray[a]
 
-                                                                                        if totalNumberOfReferences >= 2 then(
-                                                                                            for a = 1 to totalNumberOfReferences do(
-                                                                                                append secondaryReferenceCoordinatesArray (gw.transPoint [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[a][2],worldPointOnInferArray[ReferenceNumberToSnapToY][3]])
+                                                                                            if i[1] >= currentMousePositionCoordinates[1]-snapRadius and i[1] <= currentMousePositionCoordinates[1]+snapRadius and i[2] >= currentMousePositionCoordinates[2]-snapRadius and i[2] <= currentMousePositionCoordinates[2]+snapRadius then(
+                                                                                                matchWasFound = true
+
+                                                                                                referenceNumberToSnapToSecondary = a
                                                                                             )
 
-                                                                                            for a = 1 to secondaryReferenceCoordinatesArray.count do(
-                                                                                                matchWasFound = false
-                                                                                                i = secondaryReferenceCoordinatesArray[a]
-
-                                                                                                if i[1] >= currentMousePositionCoordinates[1]-snapRadius and i[1] <= currentMousePositionCoordinates[1]+snapRadius and i[2] >= currentMousePositionCoordinates[2]-snapRadius and i[2] <= currentMousePositionCoordinates[2]+snapRadius then(
-                                                                                                    matchWasFound = true
-
+                                                                                            if matchWasFound == true then(
+                                                                                                if referenceNumberToSnapToSecondary == undefined then(
                                                                                                     referenceNumberToSnapToSecondary = a
-                                                                                                )
-
-                                                                                                if matchWasFound == true then(
-                                                                                                    if referenceNumberToSnapToSecondary == undefined then(
+                                                                                                )else(
+                                                                                                    if lastSecondaryReferenceNumberSnappedTo == a then(
                                                                                                         referenceNumberToSnapToSecondary = a
-                                                                                                    )else(
-                                                                                                        if lastSecondaryReferenceNumberSnappedTo == a then(
-                                                                                                            referenceNumberToSnapToSecondary = a
-                                                                                                        )
                                                                                                     )
                                                                                                 )
                                                                                             )
                                                                                         )
+                                                                                    )
 
-                                                                                    -- Reference lines + bPositionFinal
+                                                                                -- Reference Lines + bPositionFinal
 
-                                                                                        if referenceNumberToSnapToSecondary == undefined then(
-                                                                                            referenceLineY.pos = worldPointOnInferArray[ReferenceNumberToSnapToY]
-                                                                                            referenceEndPointY.pos = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],yMousePosCurrent,worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
+                                                                                    referenceLineLocked.pos = worldPointOnInferArray[ReferenceNumberToSnapToZ]
+                                                                                    lastReferenceNumberSnappedToAny = referenceNumberToSnapToZ
 
-                                                                                            hide referenceLineX
-                                                                                            unhide referenceLineY
-                                                                                            hide referenceLineZ
-                                                                                            hide referenceLineSecondary
+                                                                                    if referenceNumberToSnapToSecondary == undefined then(
+                                                                                        if distanceEntered != undefined then(
+                                                                                            -- If the objects is being moved in the negative direction, convert the distance entered into a negative value
 
-                                                                                            bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],yMousePosCurrent,worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
+                                                                                                if zMousePosCurrent < worldPointOnInferArray[ReferenceNumberToSnapToZ][3] then(
+                                                                                                    distanceEnteredFinal = (- distanceEntered)
+                                                                                                )else(
+                                                                                                    distanceEnteredFinal = distanceEntered
+                                                                                                )
+
+                                                                                            bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[ReferenceNumberToSnapToZ][3] + distanceEnteredFinal]
                                                                                         )else(
-                                                                                            referenceLineY.pos = worldPointOnInferArray[ReferenceNumberToSnapToY]
-                                                                                            referenceEndPointY.pos = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][2],worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
-                                                                                            referenceLineSecondary.pos = worldPointOnInferArray[ReferenceNumberToSnapToSecondary]
-                                                                                            referenceEndPointSecondary.pos = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][2],worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
-
-                                                                                            hide referenceLineX
-                                                                                            unhide referenceLineY
-                                                                                            hide referenceLineZ
-                                                                                            unhide referenceLineSecondary
-
-                                                                                            bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][2],worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
-                                                                                        )
-                                                                                )
-
-                                                                                if lastUsedReference == "Z" then(
-                                                                                    -- Determine whether to snap to a secondary reference
-
-                                                                                        if totalNumberOfReferences >= 2 then(
-                                                                                            for a = 1 to totalNumberOfReferences do(
-                                                                                                append secondaryReferenceCoordinatesArray (gw.transPoint [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[a][3]])
-                                                                                            )
-
-                                                                                            for a = 1 to secondaryReferenceCoordinatesArray.count do(
-                                                                                                matchWasFound = false
-                                                                                                i = secondaryReferenceCoordinatesArray[a]
-
-                                                                                                if i[1] >= currentMousePositionCoordinates[1]-snapRadius and i[1] <= currentMousePositionCoordinates[1]+snapRadius and i[2] >= currentMousePositionCoordinates[2]-snapRadius and i[2] <= currentMousePositionCoordinates[2]+snapRadius then(
-                                                                                                    matchWasFound = true
-
-                                                                                                    referenceNumberToSnapToSecondary = a
-                                                                                                )
-
-                                                                                                if matchWasFound == true then(
-                                                                                                    if referenceNumberToSnapToSecondary == undefined then(
-                                                                                                        referenceNumberToSnapToSecondary = a
-                                                                                                    )else(
-                                                                                                        if lastSecondaryReferenceNumberSnappedTo == a then(
-                                                                                                            referenceNumberToSnapToSecondary = a
-                                                                                                        )
-                                                                                                    )
-                                                                                                )
-                                                                                            )
-                                                                                        )
-
-                                                                                    -- Reference Lines + bPositionFinal
-
-                                                                                        if referenceNumberToSnapToSecondary == undefined then(
                                                                                             referenceLineZ.pos = worldPointOnInferArray[ReferenceNumberToSnapToZ]
                                                                                             referenceEndPointZ.pos = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],zMousePosCurrent]
 
@@ -2214,288 +1964,563 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                                                                             hide referenceLineSecondary
 
                                                                                             bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],zMousePosCurrent]
-                                                                                        )else(
+                                                                                        )
+                                                                                    )else(
+                                                                                        referenceLineZ.pos = worldPointOnInferArray[ReferenceNumberToSnapToZ]
+                                                                                        referenceEndPointZ.pos = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][3]]
+                                                                                        referenceLineSecondary.pos = worldPointOnInferArray[ReferenceNumberToSnapToSecondary]
+                                                                                        referenceEndPointSecondary.pos = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][3]]
+
+                                                                                        hide referenceLineX
+                                                                                        hide referenceLineY
+                                                                                        unhide referenceLineZ
+                                                                                        unhide referenceLineSecondary
+
+                                                                                        bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][3]]
+                                                                                    )
+
+                                                                                -- Define last used reference variable
+
+                                                                                    lastUsedReference = "Z"
+                                                                            )
+
+                                                                        -- If two references are being snapped to...
+
+                                                                            if snapToXReference == true and snapToYReference == true and snapToZReference == false then(
+                                                                                -- Snap to both references if they share the same Z value but aren't the same reference, or else snap to whatever axis was last snapped to
+
+                                                                                    if worldPointOnInferArray[ReferenceNumberToSnapToY][3] == worldPointOnInferArray[ReferenceNumberToSnapToX][3] and referenceNumberToSnapToY != referenceNumberToSnapToX then(
+                                                                                        -- Reference Lines
+
+                                                                                                referenceLineX.pos = worldPointOnInferArray[ReferenceNumberToSnapToX]
+                                                                                                referenceEndPointX.pos = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
+
+                                                                                                referenceLineY.pos = worldPointOnInferArray[ReferenceNumberToSnapToY]
+                                                                                                referenceEndPointY.pos = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
+
+                                                                                                unhide referenceLineX
+                                                                                                unhide referenceLineY
+                                                                                                hide referenceLineZ
+                                                                                                hide referenceLineSecondary
+
+                                                                                        bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
+                                                                                    )else(
+                                                                                        if lastUsedReference == "X" then(
+                                                                                            -- Determine whether to snap to a secondary reference
+
+                                                                                                if totalNumberOfReferences >= 2 then(
+                                                                                                    for a = 1 to totalNumberOfReferences do(
+                                                                                                        append secondaryReferenceCoordinatesArray (gw.transPoint [worldPointOnInferArray[a][1],worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]])
+                                                                                                    )
+
+                                                                                                    for a = 1 to secondaryReferenceCoordinatesArray.count do(
+                                                                                                        matchWasFound = false
+                                                                                                        i = secondaryReferenceCoordinatesArray[a]
+
+                                                                                                        if i[1] >= currentMousePositionCoordinates[1]-snapRadius and i[1] <= currentMousePositionCoordinates[1]+snapRadius and i[2] >= currentMousePositionCoordinates[2]-snapRadius and i[2] <= currentMousePositionCoordinates[2]+snapRadius then(
+                                                                                                            matchWasFound = true
+
+                                                                                                            referenceNumberToSnapToSecondary = a
+                                                                                                        )
+
+                                                                                                        if matchWasFound == true then(
+                                                                                                            if referenceNumberToSnapToSecondary == undefined then(
+                                                                                                                referenceNumberToSnapToSecondary = a
+                                                                                                            )else(
+                                                                                                                if lastSecondaryReferenceNumberSnappedTo == a then(
+                                                                                                                    referenceNumberToSnapToSecondary = a
+                                                                                                                )
+                                                                                                            )
+                                                                                                        )
+                                                                                                    )
+                                                                                                )
+
+                                                                                            -- Reference Lines + bPositionFinal
+
+                                                                                                if referenceNumberToSnapToSecondary == undefined then(
+                                                                                                    referenceLineX.pos = worldPointOnInferArray[ReferenceNumberToSnapToX]
+                                                                                                    referenceEndPointX.pos = [xMousePosCurrent,worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
+
+                                                                                                    unhide referenceLineX
+                                                                                                    hide referenceLineY
+                                                                                                    hide referenceLineZ
+                                                                                                    hide referenceLineSecondary
+
+                                                                                                    bPositionFinal = [xMousePosCurrent,worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
+                                                                                                )else(
+                                                                                                    referenceLineX.pos = worldPointOnInferArray[ReferenceNumberToSnapToX]
+                                                                                                    referenceEndPointX.pos = [worldPointOnInferArray[ReferenceNumberToSnapToSecondary][1],worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
+                                                                                                    referenceLineSecondary.pos = worldPointOnInferArray[ReferenceNumberToSnapToSecondary]
+                                                                                                    referenceEndPointSecondary.pos = [worldPointOnInferArray[ReferenceNumberToSnapToSecondary][1],worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
+
+                                                                                                    unhide referenceLineX
+                                                                                                    hide referenceLineY
+                                                                                                    hide referenceLineZ
+                                                                                                    unhide referenceLineSecondary
+
+                                                                                                    bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToSecondary][1],worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
+                                                                                                )
+                                                                                        )
+
+                                                                                        if lastUsedReference == "Y" then(
+                                                                                            -- Determine whether to snap to a secondary reference
+
+                                                                                                if totalNumberOfReferences >= 2 then(
+                                                                                                    for a = 1 to totalNumberOfReferences do(
+                                                                                                        append secondaryReferenceCoordinatesArray (gw.transPoint [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[a][2],worldPointOnInferArray[ReferenceNumberToSnapToY][3]])
+                                                                                                    )
+
+                                                                                                    for a = 1 to secondaryReferenceCoordinatesArray.count do(
+                                                                                                        matchWasFound = false
+                                                                                                        i = secondaryReferenceCoordinatesArray[a]
+
+                                                                                                        if i[1] >= currentMousePositionCoordinates[1]-snapRadius and i[1] <= currentMousePositionCoordinates[1]+snapRadius and i[2] >= currentMousePositionCoordinates[2]-snapRadius and i[2] <= currentMousePositionCoordinates[2]+snapRadius then(
+                                                                                                            matchWasFound = true
+
+                                                                                                            referenceNumberToSnapToSecondary = a
+                                                                                                        )
+
+                                                                                                        if matchWasFound == true then(
+                                                                                                            if referenceNumberToSnapToSecondary == undefined then(
+                                                                                                                referenceNumberToSnapToSecondary = a
+                                                                                                            )else(
+                                                                                                                if lastSecondaryReferenceNumberSnappedTo == a then(
+                                                                                                                    referenceNumberToSnapToSecondary = a
+                                                                                                                )
+                                                                                                            )
+                                                                                                        )
+                                                                                                    )
+                                                                                                )
+
+                                                                                            -- Reference lines + bPositionFinal
+
+                                                                                                if referenceNumberToSnapToSecondary == undefined then(
+                                                                                                    referenceLineY.pos = worldPointOnInferArray[ReferenceNumberToSnapToY]
+                                                                                                    referenceEndPointY.pos = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],yMousePosCurrent,worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
+
+                                                                                                    hide referenceLineX
+                                                                                                    unhide referenceLineY
+                                                                                                    hide referenceLineZ
+                                                                                                    hide referenceLineSecondary
+
+                                                                                                    bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],yMousePosCurrent,worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
+                                                                                                )else(
+                                                                                                    referenceLineY.pos = worldPointOnInferArray[ReferenceNumberToSnapToY]
+                                                                                                    referenceEndPointY.pos = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][2],worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
+                                                                                                    referenceLineSecondary.pos = worldPointOnInferArray[ReferenceNumberToSnapToSecondary]
+                                                                                                    referenceEndPointSecondary.pos = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][2],worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
+
+                                                                                                    hide referenceLineX
+                                                                                                    unhide referenceLineY
+                                                                                                    hide referenceLineZ
+                                                                                                    unhide referenceLineSecondary
+
+                                                                                                    bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][2],worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
+                                                                                                )
+                                                                                        )
+                                                                                    )
+                                                                            )
+
+                                                                            if snapToXReference == false and snapToYReference == true and snapToZReference == true then(
+                                                                                -- Snap to both references if they share the same X value but aren't the same reference, or else snap to whatever axis was last snapped to
+
+                                                                                    if worldPointOnInferArray[ReferenceNumberToSnapToZ][1] == worldPointOnInferArray[ReferenceNumberToSnapToY][1] and referenceNumberToSnapToZ != referenceNumberToSnapToY then(
+                                                                                        -- Reference Lines
+
+                                                                                            referenceLineY.pos = worldPointOnInferArray[ReferenceNumberToSnapToY]
+                                                                                            referenceEndPointY.pos = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
+
                                                                                             referenceLineZ.pos = worldPointOnInferArray[ReferenceNumberToSnapToZ]
-                                                                                            referenceEndPointZ.pos = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][3]]
-                                                                                            referenceLineSecondary.pos = worldPointOnInferArray[ReferenceNumberToSnapToSecondary]
-                                                                                            referenceEndPointSecondary.pos = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][3]]
+                                                                                            referenceEndPointZ.pos = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
 
                                                                                             hide referenceLineX
+                                                                                            unhide referenceLineY
+                                                                                            unhide referenceLineZ
+
+                                                                                        bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
+                                                                                    )else(
+                                                                                        if lastUsedReference == "Y" then(
+                                                                                            -- Determine whether to snap to a secondary reference
+
+                                                                                                if totalNumberOfReferences >= 2 then(
+                                                                                                    for a = 1 to totalNumberOfReferences do(
+                                                                                                        append secondaryReferenceCoordinatesArray (gw.transPoint [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[a][2],worldPointOnInferArray[ReferenceNumberToSnapToY][3]])
+                                                                                                    )
+
+                                                                                                    for a = 1 to secondaryReferenceCoordinatesArray.count do(
+                                                                                                        matchWasFound = false
+                                                                                                        i = secondaryReferenceCoordinatesArray[a]
+
+                                                                                                        if i[1] >= currentMousePositionCoordinates[1]-snapRadius and i[1] <= currentMousePositionCoordinates[1]+snapRadius and i[2] >= currentMousePositionCoordinates[2]-snapRadius and i[2] <= currentMousePositionCoordinates[2]+snapRadius then(
+                                                                                                            matchWasFound = true
+
+                                                                                                            referenceNumberToSnapToSecondary = a
+                                                                                                        )
+
+                                                                                                        if matchWasFound == true then(
+                                                                                                            if referenceNumberToSnapToSecondary == undefined then(
+                                                                                                                referenceNumberToSnapToSecondary = a
+                                                                                                            )else(
+                                                                                                                if lastSecondaryReferenceNumberSnappedTo == a then(
+                                                                                                                    referenceNumberToSnapToSecondary = a
+                                                                                                                )
+                                                                                                            )
+                                                                                                        )
+                                                                                                    )
+                                                                                                )
+
+                                                                                            -- Reference lines + bPositionFinal
+
+                                                                                                if referenceNumberToSnapToSecondary == undefined then(
+                                                                                                    referenceLineY.pos = worldPointOnInferArray[ReferenceNumberToSnapToY]
+                                                                                                    referenceEndPointY.pos = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],yMousePosCurrent,worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
+
+                                                                                                    hide referenceLineX
+                                                                                                    unhide referenceLineY
+                                                                                                    hide referenceLineZ
+                                                                                                    hide referenceLineSecondary
+
+                                                                                                    bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],yMousePosCurrent,worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
+                                                                                                )else(
+                                                                                                    referenceLineY.pos = worldPointOnInferArray[ReferenceNumberToSnapToY]
+                                                                                                    referenceEndPointY.pos = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][2],worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
+                                                                                                    referenceLineSecondary.pos = worldPointOnInferArray[ReferenceNumberToSnapToSecondary]
+                                                                                                    referenceEndPointSecondary.pos = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][2],worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
+
+                                                                                                    hide referenceLineX
+                                                                                                    unhide referenceLineY
+                                                                                                    hide referenceLineZ
+                                                                                                    unhide referenceLineSecondary
+
+                                                                                                    bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][2],worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
+                                                                                                )
+                                                                                        )
+
+                                                                                        if lastUsedReference == "Z" then(
+                                                                                            -- Determine whether to snap to a secondary reference
+
+                                                                                                if totalNumberOfReferences >= 2 then(
+                                                                                                    for a = 1 to totalNumberOfReferences do(
+                                                                                                        append secondaryReferenceCoordinatesArray (gw.transPoint [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[a][3]])
+                                                                                                    )
+
+                                                                                                    for a = 1 to secondaryReferenceCoordinatesArray.count do(
+                                                                                                        matchWasFound = false
+                                                                                                        i = secondaryReferenceCoordinatesArray[a]
+
+                                                                                                        if i[1] >= currentMousePositionCoordinates[1]-snapRadius and i[1] <= currentMousePositionCoordinates[1]+snapRadius and i[2] >= currentMousePositionCoordinates[2]-snapRadius and i[2] <= currentMousePositionCoordinates[2]+snapRadius then(
+                                                                                                            matchWasFound = true
+
+                                                                                                            referenceNumberToSnapToSecondary = a
+                                                                                                        )
+
+                                                                                                        if matchWasFound == true then(
+                                                                                                            if referenceNumberToSnapToSecondary == undefined then(
+                                                                                                                referenceNumberToSnapToSecondary = a
+                                                                                                            )else(
+                                                                                                                if lastSecondaryReferenceNumberSnappedTo == a then(
+                                                                                                                    referenceNumberToSnapToSecondary = a
+                                                                                                                )
+                                                                                                            )
+                                                                                                        )
+                                                                                                    )
+                                                                                                )
+
+                                                                                            -- Reference Lines + bPositionFinal
+
+                                                                                                if referenceNumberToSnapToSecondary == undefined then(
+                                                                                                    referenceLineZ.pos = worldPointOnInferArray[ReferenceNumberToSnapToZ]
+                                                                                                    referenceEndPointZ.pos = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],zMousePosCurrent]
+
+                                                                                                    hide referenceLineX
+                                                                                                    hide referenceLineY
+                                                                                                    unhide referenceLineZ
+                                                                                                    hide referenceLineSecondary
+
+                                                                                                    bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],zMousePosCurrent]
+                                                                                                )else(
+                                                                                                    referenceLineZ.pos = worldPointOnInferArray[ReferenceNumberToSnapToZ]
+                                                                                                    referenceEndPointZ.pos = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][3]]
+                                                                                                    referenceLineSecondary.pos = worldPointOnInferArray[ReferenceNumberToSnapToSecondary]
+                                                                                                    referenceEndPointSecondary.pos = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][3]]
+
+                                                                                                    hide referenceLineX
+                                                                                                    hide referenceLineY
+                                                                                                    unhide referenceLineZ
+                                                                                                    unhide referenceLineSecondary
+
+                                                                                                    bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][3]]
+                                                                                                )
+                                                                                        )
+                                                                                    )
+                                                                            )
+
+                                                                            if snapToXReference == true and snapToYReference == false and snapToZReference == true then(
+                                                                                -- Snap to both references if they share the same Y value but aren't the same reference, or else snap to whatever axis was last snapped to
+
+                                                                                    if worldPointOnInferArray[ReferenceNumberToSnapToX][2] == worldPointOnInferArray[ReferenceNumberToSnapToZ][2] and referenceNumberToSnapToX != referenceNumberToSnapToZ then(
+                                                                                        -- Reference Lines
+
+                                                                                            referenceLineX.pos = worldPointOnInferArray[ReferenceNumberToSnapToX]
+                                                                                            referenceEndPointX.pos = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
+
+                                                                                            referenceLineZ.pos = worldPointOnInferArray[ReferenceNumberToSnapToZ]
+                                                                                            referenceEndPointZ.pos = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
+
+                                                                                            unhide referenceLineX
                                                                                             hide referenceLineY
                                                                                             unhide referenceLineZ
-                                                                                            unhide referenceLineSecondary
 
-                                                                                            bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][3]]
-                                                                                        )
-                                                                                )
-                                                                            )
-                                                                    )
+                                                                                        bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
+                                                                                    )else(
+                                                                                        if lastUsedReference == "X" then(
+                                                                                            -- Determine whether to snap to a secondary reference
 
-                                                                    if snapToXReference == true and snapToYReference == false and snapToZReference == true then(
-                                                                        -- Snap to both references if they share the same Y value but aren't the same reference, or else snap to whatever axis was last snapped to
+                                                                                                if totalNumberOfReferences >= 2 then(
+                                                                                                    for a = 1 to totalNumberOfReferences do(
+                                                                                                        append secondaryReferenceCoordinatesArray (gw.transPoint [worldPointOnInferArray[a][1],worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]])
+                                                                                                    )
 
-                                                                            if worldPointOnInferArray[ReferenceNumberToSnapToX][2] == worldPointOnInferArray[ReferenceNumberToSnapToZ][2] and referenceNumberToSnapToX != referenceNumberToSnapToZ then(
-                                                                                -- Reference Lines
+                                                                                                    for a = 1 to secondaryReferenceCoordinatesArray.count do(
+                                                                                                        matchWasFound = false
+                                                                                                        i = secondaryReferenceCoordinatesArray[a]
 
-                                                                                    referenceLineX.pos = worldPointOnInferArray[ReferenceNumberToSnapToX]
-                                                                                    referenceEndPointX.pos = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
+                                                                                                        if i[1] >= currentMousePositionCoordinates[1]-snapRadius and i[1] <= currentMousePositionCoordinates[1]+snapRadius and i[2] >= currentMousePositionCoordinates[2]-snapRadius and i[2] <= currentMousePositionCoordinates[2]+snapRadius then(
+                                                                                                            matchWasFound = true
 
-                                                                                    referenceLineZ.pos = worldPointOnInferArray[ReferenceNumberToSnapToZ]
-                                                                                    referenceEndPointZ.pos = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
-
-                                                                                    unhide referenceLineX
-                                                                                    hide referenceLineY
-                                                                                    unhide referenceLineZ
-
-                                                                                bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
-                                                                            )else(
-                                                                                if lastUsedReference == "X" then(
-                                                                                    -- Determine whether to snap to a secondary reference
-
-                                                                                        if totalNumberOfReferences >= 2 then(
-                                                                                            for a = 1 to totalNumberOfReferences do(
-                                                                                                append secondaryReferenceCoordinatesArray (gw.transPoint [worldPointOnInferArray[a][1],worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]])
-                                                                                            )
-
-                                                                                            for a = 1 to secondaryReferenceCoordinatesArray.count do(
-                                                                                                matchWasFound = false
-                                                                                                i = secondaryReferenceCoordinatesArray[a]
-
-                                                                                                if i[1] >= currentMousePositionCoordinates[1]-snapRadius and i[1] <= currentMousePositionCoordinates[1]+snapRadius and i[2] >= currentMousePositionCoordinates[2]-snapRadius and i[2] <= currentMousePositionCoordinates[2]+snapRadius then(
-                                                                                                    matchWasFound = true
-
-                                                                                                    referenceNumberToSnapToSecondary = a
-                                                                                                )
-
-                                                                                                if matchWasFound == true then(
-                                                                                                    if referenceNumberToSnapToSecondary == undefined then(
-                                                                                                        referenceNumberToSnapToSecondary = a
-                                                                                                    )else(
-                                                                                                        if lastSecondaryReferenceNumberSnappedTo == a then(
                                                                                                             referenceNumberToSnapToSecondary = a
+                                                                                                        )
+
+                                                                                                        if matchWasFound == true then(
+                                                                                                            if referenceNumberToSnapToSecondary == undefined then(
+                                                                                                                referenceNumberToSnapToSecondary = a
+                                                                                                            )else(
+                                                                                                                if lastSecondaryReferenceNumberSnappedTo == a then(
+                                                                                                                    referenceNumberToSnapToSecondary = a
+                                                                                                                )
+                                                                                                            )
                                                                                                         )
                                                                                                     )
                                                                                                 )
-                                                                                            )
+
+                                                                                            -- Reference Lines + bPositionFinal
+
+                                                                                                if referenceNumberToSnapToSecondary == undefined then(
+                                                                                                    referenceLineX.pos = worldPointOnInferArray[ReferenceNumberToSnapToX]
+                                                                                                    referenceEndPointX.pos = [xMousePosCurrent,worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
+
+                                                                                                    unhide referenceLineX
+                                                                                                    hide referenceLineY
+                                                                                                    hide referenceLineZ
+                                                                                                    hide referenceLineSecondary
+
+                                                                                                    bPositionFinal = [xMousePosCurrent,worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
+                                                                                                )else(
+                                                                                                    referenceLineX.pos = worldPointOnInferArray[ReferenceNumberToSnapToX]
+                                                                                                    referenceEndPointX.pos = [worldPointOnInferArray[ReferenceNumberToSnapToSecondary][1],worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
+                                                                                                    referenceLineSecondary.pos = worldPointOnInferArray[ReferenceNumberToSnapToSecondary]
+                                                                                                    referenceEndPointSecondary.pos = [worldPointOnInferArray[ReferenceNumberToSnapToSecondary][1],worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
+
+                                                                                                    unhide referenceLineX
+                                                                                                    hide referenceLineY
+                                                                                                    hide referenceLineZ
+                                                                                                    unhide referenceLineSecondary
+
+                                                                                                    bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToSecondary][1],worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
+                                                                                                )
                                                                                         )
 
-                                                                                    -- Reference Lines + bPositionFinal
+                                                                                        if lastUsedReference == "Z" then(
+                                                                                            -- Determine whether to snap to a secondary reference
 
-                                                                                        if referenceNumberToSnapToSecondary == undefined then(
+                                                                                                if totalNumberOfReferences >= 2 then(
+                                                                                                    for a = 1 to totalNumberOfReferences do(
+                                                                                                        append secondaryReferenceCoordinatesArray (gw.transPoint [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[a][3]])
+                                                                                                    )
+
+                                                                                                    for a = 1 to secondaryReferenceCoordinatesArray.count do(
+                                                                                                        matchWasFound = false
+                                                                                                        i = secondaryReferenceCoordinatesArray[a]
+
+                                                                                                        if i[1] >= currentMousePositionCoordinates[1]-snapRadius and i[1] <= currentMousePositionCoordinates[1]+snapRadius and i[2] >= currentMousePositionCoordinates[2]-snapRadius and i[2] <= currentMousePositionCoordinates[2]+snapRadius then(
+                                                                                                            matchWasFound = true
+
+                                                                                                            referenceNumberToSnapToSecondary = a
+                                                                                                        )
+
+                                                                                                        if matchWasFound == true then(
+                                                                                                            if referenceNumberToSnapToSecondary == undefined then(
+                                                                                                                referenceNumberToSnapToSecondary = a
+                                                                                                            )else(
+                                                                                                                if lastSecondaryReferenceNumberSnappedTo == a then(
+                                                                                                                    referenceNumberToSnapToSecondary = a
+                                                                                                                )
+                                                                                                            )
+                                                                                                        )
+                                                                                                    )
+                                                                                                )
+
+                                                                                            -- Reference Lines + bPositionFinal
+
+                                                                                                if referenceNumberToSnapToSecondary == undefined then(
+                                                                                                    referenceLineZ.pos = worldPointOnInferArray[ReferenceNumberToSnapToZ]
+                                                                                                    referenceEndPointZ.pos = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],zMousePosCurrent]
+
+                                                                                                    hide referenceLineX
+                                                                                                    hide referenceLineY
+                                                                                                    unhide referenceLineZ
+                                                                                                    hide referenceLineSecondary
+
+                                                                                                    bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],zMousePosCurrent]
+                                                                                                )else(
+                                                                                                    referenceLineZ.pos = worldPointOnInferArray[ReferenceNumberToSnapToZ]
+                                                                                                    referenceEndPointZ.pos = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][3]]
+                                                                                                    referenceLineSecondary.pos = worldPointOnInferArray[ReferenceNumberToSnapToSecondary]
+                                                                                                    referenceEndPointSecondary.pos = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][3]]
+
+                                                                                                    hide referenceLineX
+                                                                                                    hide referenceLineY
+                                                                                                    unhide referenceLineZ
+                                                                                                    unhide referenceLineSecondary
+
+                                                                                                    bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][3]]
+                                                                                                )
+                                                                                        )
+                                                                                    )
+                                                                            )
+
+                                                                        -- If all 3 references are being snapped to...
+
+                                                                            if snapToXReference == true and snapToYReference == true and snapToZReference == true then(
+                                                                                if referenceNumberToSnapToX == referenceNumberToSnapToY and referenceNumberToSnapToY == referenceNumberToSnapToZ then(
+                                                                                    if lastUsedReference == "X" then(
+                                                                                        -- Reference Lines
+
                                                                                             referenceLineX.pos = worldPointOnInferArray[ReferenceNumberToSnapToX]
                                                                                             referenceEndPointX.pos = [xMousePosCurrent,worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
-
                                                                                             unhide referenceLineX
                                                                                             hide referenceLineY
                                                                                             hide referenceLineZ
-                                                                                            hide referenceLineSecondary
 
-                                                                                            bPositionFinal = [xMousePosCurrent,worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
-                                                                                        )else(
-                                                                                            referenceLineX.pos = worldPointOnInferArray[ReferenceNumberToSnapToX]
-                                                                                            referenceEndPointX.pos = [worldPointOnInferArray[ReferenceNumberToSnapToSecondary][1],worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
-                                                                                            referenceLineSecondary.pos = worldPointOnInferArray[ReferenceNumberToSnapToSecondary]
-                                                                                            referenceEndPointSecondary.pos = [worldPointOnInferArray[ReferenceNumberToSnapToSecondary][1],worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
+                                                                                        bPositionFinal = [xMousePosCurrent,worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
+                                                                                    )
 
-                                                                                            unhide referenceLineX
-                                                                                            hide referenceLineY
+                                                                                    if lastUsedReference == "Y" then(
+                                                                                        -- Reference Lines
+
+                                                                                            referenceLineY.pos = worldPointOnInferArray[ReferenceNumberToSnapToY]
+                                                                                            referenceEndPointY.pos = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],yMousePosCurrent,worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
+
+                                                                                            hide referenceLineX
+                                                                                            unhide referenceLineY
                                                                                             hide referenceLineZ
-                                                                                            unhide referenceLineSecondary
 
-                                                                                            bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToSecondary][1],worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
-                                                                                        )
-                                                                                )
+                                                                                        bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],yMousePosCurrent,worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
+                                                                                    )
 
-                                                                                if lastUsedReference == "Z" then(
-                                                                                    -- Determine whether to snap to a secondary reference
+                                                                                    if lastUsedReference == "Z" then(
+                                                                                        -- Reference Lines
 
-                                                                                        if totalNumberOfReferences >= 2 then(
-                                                                                            for a = 1 to totalNumberOfReferences do(
-                                                                                                append secondaryReferenceCoordinatesArray (gw.transPoint [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[a][3]])
-                                                                                            )
-
-                                                                                            for a = 1 to secondaryReferenceCoordinatesArray.count do(
-                                                                                                matchWasFound = false
-                                                                                                i = secondaryReferenceCoordinatesArray[a]
-
-                                                                                                if i[1] >= currentMousePositionCoordinates[1]-snapRadius and i[1] <= currentMousePositionCoordinates[1]+snapRadius and i[2] >= currentMousePositionCoordinates[2]-snapRadius and i[2] <= currentMousePositionCoordinates[2]+snapRadius then(
-                                                                                                    matchWasFound = true
-
-                                                                                                    referenceNumberToSnapToSecondary = a
-                                                                                                )
-
-                                                                                                if matchWasFound == true then(
-                                                                                                    if referenceNumberToSnapToSecondary == undefined then(
-                                                                                                        referenceNumberToSnapToSecondary = a
-                                                                                                    )else(
-                                                                                                        if lastSecondaryReferenceNumberSnappedTo == a then(
-                                                                                                            referenceNumberToSnapToSecondary = a
-                                                                                                        )
-                                                                                                    )
-                                                                                                )
-                                                                                            )
-                                                                                        )
-
-                                                                                    -- Reference Lines + bPositionFinal
-
-                                                                                        if referenceNumberToSnapToSecondary == undefined then(
                                                                                             referenceLineZ.pos = worldPointOnInferArray[ReferenceNumberToSnapToZ]
                                                                                             referenceEndPointZ.pos = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],zMousePosCurrent]
 
                                                                                             hide referenceLineX
                                                                                             hide referenceLineY
                                                                                             unhide referenceLineZ
-                                                                                            hide referenceLineSecondary
 
-                                                                                            bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],zMousePosCurrent]
-                                                                                        )else(
-                                                                                            referenceLineZ.pos = worldPointOnInferArray[ReferenceNumberToSnapToZ]
-                                                                                            referenceEndPointZ.pos = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][3]]
-                                                                                            referenceLineSecondary.pos = worldPointOnInferArray[ReferenceNumberToSnapToSecondary]
-                                                                                            referenceEndPointSecondary.pos = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][3]]
-
-                                                                                            hide referenceLineX
-                                                                                            hide referenceLineY
-                                                                                            unhide referenceLineZ
-                                                                                            unhide referenceLineSecondary
-
-                                                                                            bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],worldPointOnInferArray[ReferenceNumberToSnapToSecondary][3]]
-                                                                                        )
+                                                                                        bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],zMousePosCurrent]
+                                                                                    )
                                                                                 )
                                                                             )
-                                                                    )
+                                                                    )else(
+                                                                        referenceLineLocked.pos = worldPointOnInferArray[1]
+                                                                        lastReferenceNumberSnappedToAny = 1
 
-                                                                -- If all 3 references are being snapped to...
+                                                                        -- Grids
 
-                                                                    if snapToXReference == true and snapToYReference == true and snapToZReference == true then(
-                                                                        if referenceNumberToSnapToX == referenceNumberToSnapToY and referenceNumberToSnapToY == referenceNumberToSnapToZ then(
-                                                                            if lastUsedReference == "X" then(
-                                                                                -- Reference Lines
+                                                                            $BetterToolsMainGrid.pos = worldPointOnInferArray[1]
+                                                                            $BetterToolsXGrid.pos = worldPointOnInferArray[1]
+                                                                            $BetterToolsYGrid.pos = worldPointOnInferArray[1]
+                                                                            $BetterToolsZGrid.pos = worldPointOnInferArray[1]
 
-                                                                                    referenceLineX.pos = worldPointOnInferArray[ReferenceNumberToSnapToX]
-                                                                                    referenceEndPointX.pos = [xMousePosCurrent,worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
+                                                                            activeGrid = $BetterToolsMainGrid
+
+                                                                        -- Reference Lines
+
+                                                                            hide referenceLineX
+                                                                            hide referenceLineY
+                                                                            hide referenceLineZ
+                                                                            hide referenceLineSecondary
+
+                                                                            for a = 1 to totalNumberOfReferences do(
+                                                                                i = worldPointOnInferArray[a]
+
+                                                                                if worldPoint[1] != i[1] and worldPoint[2] == i[2] and worldPoint[3] == i[3] then(
+                                                                                    referenceLineX.pos = i
+                                                                                    referenceEndPointX.pos = worldPoint
+
                                                                                     unhide referenceLineX
-                                                                                    hide referenceLineY
-                                                                                    hide referenceLineZ
+                                                                                )
 
-                                                                                bPositionFinal = [xMousePosCurrent,worldPointOnInferArray[ReferenceNumberToSnapToX][2],worldPointOnInferArray[ReferenceNumberToSnapToX][3]]
-                                                                            )
+                                                                                if worldPoint[1] == i[1] and worldPoint[2] != i[2] and worldPoint[3] == i[3] then(
+                                                                                    referenceLineY.pos = i
+                                                                                    referenceEndPointY.pos = worldPoint
 
-                                                                            if lastUsedReference == "Y" then(
-                                                                                -- Reference Lines
-
-                                                                                    referenceLineY.pos = worldPointOnInferArray[ReferenceNumberToSnapToY]
-                                                                                    referenceEndPointY.pos = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],yMousePosCurrent,worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
-
-                                                                                    hide referenceLineX
                                                                                     unhide referenceLineY
-                                                                                    hide referenceLineZ
+                                                                                )
 
-                                                                                bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToY][1],yMousePosCurrent,worldPointOnInferArray[ReferenceNumberToSnapToY][3]]
-                                                                            )
+                                                                                if worldPoint[1] == i[1] and worldPoint[2] == i[2] and worldPoint[3] != i[3] then(
+                                                                                    referenceLineZ.pos = i
+                                                                                    referenceEndPointZ.pos = worldPoint
 
-                                                                            if lastUsedReference == "Z" then(
-                                                                                -- Reference Lines
-
-                                                                                    referenceLineZ.pos = worldPointOnInferArray[ReferenceNumberToSnapToZ]
-                                                                                    referenceEndPointZ.pos = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],zMousePosCurrent]
-
-                                                                                    hide referenceLineX
-                                                                                    hide referenceLineY
                                                                                     unhide referenceLineZ
-
-                                                                                bPositionFinal = [worldPointOnInferArray[ReferenceNumberToSnapToZ][1],worldPointOnInferArray[ReferenceNumberToSnapToZ][2],zMousePosCurrent]
+                                                                                )
                                                                             )
-                                                                        )
-                                                                    )
-                                                            )else(
-                                                                referenceLineLocked.pos = worldPointOnInferArray[1]
-                                                                lastReferenceNumberSnappedToAny = 1
 
-                                                                -- Grids
+                                                                        bPositionFinal = [xMousePosCurrent,yMousePosCurrent,zMousePosCurrent]
 
-                                                                    $BetterToolsMainGrid.pos = worldPointOnInferArray[1]
-                                                                    $BetterToolsXGrid.pos = worldPointOnInferArray[1]
-                                                                    $BetterToolsYGrid.pos = worldPointOnInferArray[1]
-                                                                    $BetterToolsZGrid.pos = worldPointOnInferArray[1]
+                                                                        -- Define last used reference variable
 
-                                                                    activeGrid = $BetterToolsMainGrid
-
-                                                                -- Reference Lines
-
-                                                                    hide referenceLineX
-                                                                    hide referenceLineY
-                                                                    hide referenceLineZ
-                                                                    hide referenceLineSecondary
-
-                                                                    for a = 1 to totalNumberOfReferences do(
-                                                                        i = worldPointOnInferArray[a]
-
-                                                                        if worldPoint[1] != i[1] and worldPoint[2] == i[2] and worldPoint[3] == i[3] then(
-                                                                            referenceLineX.pos = i
-                                                                            referenceEndPointX.pos = worldPoint
-
-                                                                            unhide referenceLineX
-                                                                        )
-
-                                                                        if worldPoint[1] == i[1] and worldPoint[2] != i[2] and worldPoint[3] == i[3] then(
-                                                                            referenceLineY.pos = i
-                                                                            referenceEndPointY.pos = worldPoint
-
-                                                                            unhide referenceLineY
-                                                                        )
-
-                                                                        if worldPoint[1] == i[1] and worldPoint[2] == i[2] and worldPoint[3] != i[3] then(
-                                                                            referenceLineZ.pos = i
-                                                                            referenceEndPointZ.pos = worldPoint
-
-                                                                            unhide referenceLineZ
-                                                                        )
+                                                                            lastUsedReference = "undefined"
                                                                     )
 
-                                                                bPositionFinal = [xMousePosCurrent,yMousePosCurrent,zMousePosCurrent]
+                                                                -- Move
 
-                                                                -- Define last used reference variable
-
-                                                                    lastUsedReference = "undefined"
-                                                            )
-
-                                                        -- Move
-
-                                                            if subObjectLevelIsZero() then(
-                                                                for z = 1 to selectionPositionsRelativeToFirstClickPointArray.count do(
-                                                                    bSelection[z].pos = [(bPositionFinal[1] + selectionPositionsRelativeToFirstClickPointArray[z][1]), (bPositionFinal[2] + selectionPositionsRelativeToFirstClickPointArray[z][2]), (bPositionFinal[3] + selectionPositionsRelativeToFirstClickPointArray[z][3])]
-                                                                )
-                                                            )else(
-                                                                finalSubobjectPos = [(bPositionFinal[1] - firstClickPos[1]),(bPositionFinal[2] - firstClickPos[2]),(bPositionFinal[3] - firstClickPos[3])]
-
-                                                                -- Editable poly
-
-                                                                    if (modPanel.getCurrentObject() as string) == "Editable Poly" or (modPanel.getCurrentObject() as string) == "Editable Mesh" then(
-                                                                        if subObjectLevel == 1 then(
-                                                                            move $.selectedVerts [finalSubobjectPos[1] - lastFinalSubobjectPos[1], finalSubobjectPos[2] - lastFinalSubobjectPos[2], finalSubobjectPos[3] - lastFinalSubobjectPos[3]]
+                                                                    if subObjectLevelIsZero() then(
+                                                                        for z = 1 to selectionPositionsRelativeToFirstClickPointArray.count do(
+                                                                            bSelection[z].pos = [(bPositionFinal[1] + selectionPositionsRelativeToFirstClickPointArray[z][1]), (bPositionFinal[2] + selectionPositionsRelativeToFirstClickPointArray[z][2]), (bPositionFinal[3] + selectionPositionsRelativeToFirstClickPointArray[z][3])]
                                                                         )
+                                                                    )else(
+                                                                        finalSubobjectPos = [(bPositionFinal[1] - firstClickPos[1]),(bPositionFinal[2] - firstClickPos[2]),(bPositionFinal[3] - firstClickPos[3])]
 
-                                                                        if subObjectLevel == 2 or subObjectLevel == 3 then(
-                                                                            move $.selectedEdges [finalSubobjectPos[1] - lastFinalSubobjectPos[1], finalSubobjectPos[2] - lastFinalSubobjectPos[2], finalSubobjectPos[3] - lastFinalSubobjectPos[3]]
-                                                                        )
+                                                                        -- Editable poly
 
-                                                                        if subObjectLevel == 4 or subObjectLevel == 5 then(
-                                                                            move $.selectedFaces [finalSubobjectPos[1] - lastFinalSubobjectPos[1], finalSubobjectPos[2] - lastFinalSubobjectPos[2], finalSubobjectPos[3] - lastFinalSubobjectPos[3]]
-                                                                        )
+                                                                            if (modPanel.getCurrentObject() as string) == "Editable Poly" or (modPanel.getCurrentObject() as string) == "Editable Mesh" then(
+                                                                                if subObjectLevel == 1 then(
+                                                                                    move $.selectedVerts [finalSubobjectPos[1] - lastFinalSubobjectPos[1], finalSubobjectPos[2] - lastFinalSubobjectPos[2], finalSubobjectPos[3] - lastFinalSubobjectPos[3]]
+                                                                                )
 
-                                                                        -- Update lastFinalSubobjectPos variable. This variable is used to isolate what happens between each freeMove and the next, since with editable polys the move distance accumulates.
+                                                                                if subObjectLevel == 2 or subObjectLevel == 3 then(
+                                                                                    move $.selectedEdges [finalSubobjectPos[1] - lastFinalSubobjectPos[1], finalSubobjectPos[2] - lastFinalSubobjectPos[2], finalSubobjectPos[3] - lastFinalSubobjectPos[3]]
+                                                                                )
 
-                                                                            lastFinalSubobjectPos = finalSubobjectPos
-                                                                    )
+                                                                                if subObjectLevel == 4 or subObjectLevel == 5 then(
+                                                                                    move $.selectedFaces [finalSubobjectPos[1] - lastFinalSubobjectPos[1], finalSubobjectPos[2] - lastFinalSubobjectPos[2], finalSubobjectPos[3] - lastFinalSubobjectPos[3]]
+                                                                                )
 
-                                                                -- Edit poly
+                                                                                -- Update lastFinalSubobjectPos variable. This variable is used to isolate what happens between each freeMove and the next, since with editable polys the move distance accumulates.
 
-                                                                    if matchPattern (modPanel.getCurrentObject() as string) Pattern:"Edit_Poly:*" then(
-                                                                        EditPolyMod.MoveSelection $.modifiers[#Edit_Poly] finalSubobjectPos
+                                                                                    lastFinalSubobjectPos = finalSubobjectPos
+                                                                            )
+
+                                                                        -- Edit poly
+
+                                                                            if matchPattern (modPanel.getCurrentObject() as string) Pattern:"Edit_Poly:*" then(
+                                                                                EditPolyMod.MoveSelection $.modifiers[#Edit_Poly] finalSubobjectPos
+                                                                            )
                                                                     )
                                                             )
-                                                    )
+                                                        )
                                         )else(
                                             unhide referenceLineLocked
                                             hide referenceLineSecondary
@@ -2833,7 +2858,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                         undo off(
                             BetterToolsStopToolOnMouseUnclickedTimer.stop()
 
-                            if mouse.pos != mousePos2D then(
+                            if mouse.pos != mousePos2DOnFirstClick then(
                                 success = true
 
                                 ignoreNextCallOfStopClause = true
@@ -3025,9 +3050,18 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                                 activeGrid = originalActiveGrid
 
-                            -- Ensure grid snap is set to what it originally was
+                            -- Ensure snaps are as they originally were, in case they were changed on first click
 
                                 snapMode.setOSnapItemActive 4 1 originalGridSnapState
+
+                                snapMode.display = originalSnapDisplayState
+
+                                -- Set grid sizes to home grid size, in case user uses grid snap
+
+                                    $BetterToolsMainGrid.grid = getGridSpacing()
+                                    $BetterToolsXGrid.grid = getGridSpacing()
+                                    $BetterToolsYGrid.grid = getGridSpacing()
+                                    $BetterToolsZGrid.grid = getGridSpacing()
 
                             -- Show gizmo if relevant
 
@@ -3777,6 +3811,10 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                         -- Record selection's position, cancel any dragging operation to temporarily move the selection back to where it was when first clicked, record this position so we know where to reference/undo to, and then move it back. Cancelling the drag and re-moving is needed as otherwise the tool will cancel it and not move it back.
 
+                            worldPointFromHWNDSecondaryOnFirstCLick = worldPointFromHWNDSecondary
+
+                            getWorldPointFromHWNDsSecondaryFunction()
+
                             if subObjectLevelIsZero() then(
                                 bSelectionPosOnToolStart = (selection[1].pos)
                             )else(
@@ -3785,9 +3823,11 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                             pivotPositionOnToolStart = getPivotPosition()
 
-                            -- Cancel any moving by entering select mode
+                            -- Cancel any moving by entering select mode briefly
 
                                 max select
+
+                                max move
 
                             -- Record selection's new (so, original) position
 
@@ -3801,9 +3841,9 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                             -- Define the mouse position variables
 
-                                mousePosOnFirstClick = (if startMovingFromSelectionsPivot == true then pivotPositionOnFirstClick else worldPointFromHWNDSecondary)
+                                mousePosOnFirstClick = (if startMovingFromSelectionsPivot == true then pivotPositionOnFirstClick else worldPointFromHWNDSecondaryOnFirstCLick)
 
-                                mousePosOnToolStart = [((worldPointFromHWNDSecondary[1] - bSelectionPosOnFirstClick[1]) + bSelectionPosOnToolStart[1]), ((worldPointFromHWNDSecondary[2] - bSelectionPosOnFirstClick[2]) + bSelectionPosOnToolStart[2]), ((worldPointFromHWNDSecondary[3] - bSelectionPosOnFirstClick[3]) + bSelectionPosOnToolStart[3])]
+                                mousePosOnToolStart = [((worldPointFromHWNDSecondaryOnFirstCLick[1] - bSelectionPosOnFirstClick[1]) + bSelectionPosOnToolStart[1]), ((worldPointFromHWNDSecondaryOnFirstCLick[2] - bSelectionPosOnFirstClick[2]) + bSelectionPosOnToolStart[2]), ((worldPointFromHWNDSecondaryOnFirstCLick[3] - bSelectionPosOnFirstClick[3]) + bSelectionPosOnToolStart[3])]
 
                             -- Move the selection back to where it was in case it was being dragged
 
@@ -3867,7 +3907,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                 destroyDialog selectionUnlockedRollout
                             )catch()
 
-                        mousePos2D = undefined
+                        mousePos2DOnFirstClick = undefined
 
                         subselectionOnLastRun = undefined
 
@@ -4292,7 +4332,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                                                                                     mouseHasBeenUnclicked2 = false
 
-                                                                                    mousePos2D = mouse.pos
+                                                                                    --mousePos2DOnFirstClick = mouse.pos
 
                                                                                 undo off(
                                                                                     -- Ensure axis is hidden
@@ -4431,7 +4471,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                                                                                             mouseHasBeenUnclicked2 = false
 
-                                                                                            mousePos2D = mouse.pos
+                                                                                            --mousePos2DOnFirstClick = mouse.pos
 
                                                                                             userHasDraggedSubselection = false
 
@@ -4497,9 +4537,9 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                                                         -- Ensure an object is under the mouse. If not, this means the user has selected the object in a way other than clicking on it (such as through the scene exporer), so nothing should happen.
 
                                                                             if objectWasUnderMouseOnFirstClick == true then(
-                                                                                -- If the user has dragged, only start the tool if a draggable object is selected. Some object types freeze timers while they are being selected (and mouse is still clicked), meaning in their case the tool doesn't start until mouse is released.
+                                                                                -- If the user has dragged, don't start the tool
 
-                                                                                    if bSelectionPosOnFirstClick == $.pos or (((modPanel.getCurrentObject() as string) != "Editable Poly") and ((modPanel.getCurrentObject() as string) != "Editable Mesh")) then(
+                                                                                    if bSelectionPosOnFirstClick == $.pos then(
                                                                                         -- Run the start tool function
 
                                                                                             testTimer.stop()
@@ -4515,7 +4555,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                                                                                                 toolWasStarted = true
 
-                                                                                                mousePos2D = mouse.pos
+                                                                                                --mousePos2DOnFirstClick = mouse.pos
 
                                                                                                 -- Ensure axis is hidden
 
@@ -4613,7 +4653,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                                                                                         BetterToolsDetectWhenMoveToolIsExitedTimer.stop()
 
-                                                                                        mousePos2D = mouse.pos
+                                                                                        --mousePos2DOnFirstClick = mouse.pos
 
                                                                                         -- Ensure axis is hidden
 
@@ -4769,6 +4809,27 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                     -- Variables for next run, if the tool wasn't started
 
                         if toolWasStarted == false then(
+                            -- Ensure snaps are as they originally were, in case they were changed on first click
+
+                                if snapsHaveBeenChanged == true then(
+                                    snapsHaveBeenChanged = false
+
+                                    snapMode.setOSnapItemActive 4 1 originalGridSnapState
+
+                                    snapMode.display = originalSnapDisplayState
+
+                                    -- Set grid sizes to home grid size, in case user uses grid snap
+
+                                        $BetterToolsMainGrid.grid = getGridSpacing()
+                                        $BetterToolsXGrid.grid = getGridSpacing()
+                                        $BetterToolsYGrid.grid = getGridSpacing()
+                                        $BetterToolsZGrid.grid = getGridSpacing()
+                                )
+
+                            -- Define mousePos2DOnFirstClick variable
+
+                                mousePos2DOnFirstClick = mouse.pos
+
                             -- Define subObjectCountOnLastRun variable
 
                                 if not subObjectLevelIsZero() then(
@@ -4926,7 +4987,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                     if (modPanel.getCurrentObject() as string) == "Editable Poly" then(
                                         when select selection[1] changes id:#SubObj_SelectionChange do(
                                             if subObjectLevelBeforeModifierParameterChange == subObjectLevel then( -- If not, the change registered was just moving to a different subObjectLevel
-                                                if (subObjectLevel == 1 and ((polyop.getVertSelection selection[1]).numberset) != 0) or ((subObjectLevel == 2 or subObjectLevel == 3) and ((polyop.getEdgeSelection selection[1]).numberset) != 0) or ((subObjectLevel == 4 or subObjectLevel == 5 ) and ((polyop.getVertSelection selection[1]).numberset) != 0) then(
+                                                if (subObjectLevel == 1 and ((polyop.getVertSelection selection[1]).numberset) != 0) or ((subObjectLevel == 2 or subObjectLevel == 3) and ((polyop.getEdgeSelection selection[1]).numberset) != 0) or ((subObjectLevel == 4 or subObjectLevel == 5 ) and ((polyop.getFaceSelection selection[1]).numberset) != 0) then(
                                                     updateBSelectionPosOnFirstClickVariableFunction()
                                                 )
                                             )
@@ -4939,7 +5000,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                         when parameters selection[1] changes id:#SubObj_SelectionChange do(
                                             if subObjectLevelBeforeModifierParameterChange == subObjectLevel then( -- If not, the change registered was just moving to a different subObjectLevel
                                                 if (subObjectLevel == 1 and (EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string != "#{}" and (EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string != subselectionOnLastRun) or ((subObjectLevel == 2 or subObjectLevel == 3) and (EditPolyMod.GetSelection $.Edit_Poly #Edge) as string != "#{}" and (EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string != subselectionOnLastRun) or ((subObjectLevel == 4 or subObjectLevel == 5) and
-                                                (EditPolyMod.GetSelection $.Edit_Poly #Face) as string != "#{}" and (EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string != subselectionOnLastRun) then(
+                                                (EditPolyMod.GetSelection $.Edit_Poly #Face) as string != "#{}" and (EditPolyMod.GetSelection $.Edit_Poly #Face) as string != subselectionOnLastRun) then(
                                                     updateBSelectionPosOnFirstClickVariableFunction()
                                                 )
 
@@ -4950,11 +5011,11 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                                     )
 
                                                     if subObjectLevel == 2 or subObjectLevel == 3 then(
-                                                        subselectionOnLastRun = ((EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string)
+                                                        subselectionOnLastRun = ((EditPolyMod.GetSelection $.Edit_Poly #Edge) as string)
                                                     )
 
                                                     if subObjectLevel == 4 or subObjectLevel == 5 then(
-                                                        subselectionOnLastRun = ((EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string)
+                                                        subselectionOnLastRun = ((EditPolyMod.GetSelection $.Edit_Poly #Face) as string)
                                                     )
                                             )
                                         )
@@ -5048,7 +5109,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                 global testTimer = dotNetObject "System.Windows.Forms.Timer"
                 dotnet.addEventHandler testTimer "tick" changeVariableWhenSelectionIsChangedFunction
-                testTimer.interval = 1
+                testTimer.interval = 50
 
     -- Tool
 
@@ -5069,13 +5130,13 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                     BetterToolsStopToolOnMouseUnclickedTimerStarted = false
 
-                    if mousePos2D == undefined then(
-                        mousePos2D = mouse.pos
+                    if mousePos2DOnFirstClick == undefined then(
+                        mousePos2DOnFirstClick = mouse.pos
                     )
 
                     -- Hide the selection wireframes layer until mouse is moved. If the wireframe is visible before the object is moved, its grey outline can show over the object and look confusing.
 
-                        if mousePos2D != mouse.pos then(
+                        if mousePos2DOnFirstClick != mouse.pos then(
                             selectionWireframeLayer.isHidden = true
                         )
 
@@ -5174,7 +5235,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                     -- Move the object to the current mouse position if relevant
 
-                        if selectAndMoveMode == true and mousePos2D != mouse.pos then( -- If selectAndMoveMode is true, this means the worldPointFromHWND timer was used before clicking and the worldPointFromHWND variable is defined. If not, we don't have data on worldpoint until the first freeMove, so the equivalent code to what happens below will happen on first freeMove. This does make the code convoluted, but is done so we don't need to use the worldPointFromHWND timer if we don't need to (if selectAndMoveMode is false, the freeMove registers as soon as we click). Need to test how the timer drops performance—if negligable, then we can run it regardless of selectAndMoveMode and have all the code here. The mousePos2D part is because worldPointFromHWND can give strange results if the mouse is in the same place as it was when we first clicked. we compare the 2D values instad of 3D because the latter will be different if a snap was active on click, since we are no longer snapped to that point.
+                        if selectAndMoveMode == true and mousePos2DOnFirstClick != mouse.pos then( -- If selectAndMoveMode is true, this means the worldPointFromHWND timer was used before clicking and the worldPointFromHWND variable is defined. If not, we don't have data on worldpoint until the first freeMove, so the equivalent code to what happens below will happen on first freeMove. This does make the code convoluted, but is done so we don't need to use the worldPointFromHWND timer if we don't need to (if selectAndMoveMode is false, the freeMove registers as soon as we click). Need to test how the timer drops performance—if negligable, then we can run it regardless of selectAndMoveMode and have all the code here. The mousePos2DOnFirstClick part is because worldPointFromHWND can give strange results if the mouse is in the same place as it was when we first clicked. we compare the 2D values instad of 3D because the latter will be different if a snap was active on click, since we are no longer snapped to that point.
                             onMousePointFunctionWasRunOnStart = true
 
                             shiftKey = false
@@ -5183,7 +5244,11 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                             currentMousePositionGlobalVariable = worldPointFromHWNDSecondary
 
+                            movingBeforeFirstFreeMove = true
+
                             onMouseMoveFunction worldPointFromHWNDSecondary bSelection cSelection betterMoveCurrentObject clicknoGlobalVariable
+
+                            movingBeforeFirstFreeMove = false
                         )
 
                     currentMousePositionGlobalVariable = worldPointFromHWNDSecondary
@@ -5224,7 +5289,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                             )
 
                         if stopTryingToStartBetterToolsStopToolOnMouseUnclickedTimer == false then(
-                            if ((mouse.buttonStates as string) == "#{1}" or (mouse.buttonStates as string) == "#{1, 3}") and mousePos2D != mouse.pos then(
+                            if ((mouse.buttonStates as string) == "#{1}" or (mouse.buttonStates as string) == "#{1, 3}") and mousePos2DOnFirstClick != mouse.pos then(
                                 if bSelection1pos != bSelection[1].pos then( -- Sometimes the mouse has been moved and mouse unclicked, but Max hasn't registered that the mouse has been unclicked yet (or maybe there was a split-second of overlap between mouse being moved and still clicked). When this happens, though, the regular move tool still doesn't move the object, so we can use object's position to know whether to stop on unclick or not.
                                     stopTryingToStartBetterToolsStopToolOnMouseUnclickedTimer = true
 
@@ -5234,7 +5299,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                 )
                             )
 
-                            if ((mouse.buttonStates as string) == "#{}" or (mouse.buttonStates as string) == "#{3}") and mousePos2D == mouse.pos then(
+                            if ((mouse.buttonStates as string) == "#{}" or (mouse.buttonStates as string) == "#{3}") and mousePos2DOnFirstClick == mouse.pos then(
                                 stopTryingToStartBetterToolsStopToolOnMouseUnclickedTimer = true
                             )
                         )
