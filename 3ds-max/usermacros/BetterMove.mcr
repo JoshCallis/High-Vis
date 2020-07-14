@@ -11,6 +11,8 @@
 
     -- $.GetCommandMode()
     -- BetterToolsstartmovesessiontimer.stop()
+    -- suspendEditing which:#modify
+    -- resumeEditing which:#modify
 
 MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("BetterMove",1)(
     -- Variables etc.
@@ -136,6 +138,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                 local distanceEditTextTextString = ""
 
                 local subObjectLevelBeforeModifierParameterChange
+                local CurrentModifierBeforeModifierParameterChange
 
                 local SubselectionExists = false
 
@@ -538,6 +541,12 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
         -- Functions
 
+            -- Reset tool
+
+                fn resetToolFunction = (
+
+                )
+
             -- Round number
 
                 fn roundNumber numberToRound numberOfDP = (
@@ -856,16 +865,18 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                 if matchPattern (modPanel.getCurrentObject() as string) Pattern:"Edit_Poly:*" then(
                                     modifierType = "Edit Poly"
 
+                                    hi = modPanel.getCurrentObject()
+
                                     if subObjectLevel == 1 then(
-                                        subSelectionToReselect = (EditPolyMod.GetSelection $.modifiers[#Edit_Poly] #Vertex)
+                                        subSelectionToReselect = (EditPolyMod.GetSelection hi #Vertex)
                                     )
 
                                     if (subObjectLevel == 2 or subObjectLevel == 3) then(
-                                        subSelectionToReselect = (EditPolyMod.GetSelection $.modifiers[#Edit_Poly] #Edge)
+                                        subSelectionToReselect = (EditPolyMod.GetSelection hi #Edge)
                                     )
 
                                     if (subObjectLevel == 4 or subObjectLevel == 5) then(
-                                        subSelectionToReselect = (EditPolyMod.GetSelection $.modifiers[#Edit_Poly] #Face)
+                                        subSelectionToReselect = (EditPolyMod.GetSelection hi #Face)
                                     )
                                 )
 
@@ -1117,16 +1128,18 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                 )
 
                                 if modifierType == "Edit Poly" then(
+                                    hi = modPanel.getCurrentObject()
+
                                     if subObjectLevel == 1 then(
-                                        EditPolyMod.SetSelection $.modifiers[#Edit_Poly] #Vertex subSelectionToReselect
+                                        EditPolyMod.SetSelection hi #Vertex subSelectionToReselect
                                     )
 
                                     if subObjectLevel == 2 or subObjectLevel == 3 then(
-                                        EditPolyMod.SetSelection $.modifiers[#Edit_Poly] #Edge subSelectionToReselect
+                                        EditPolyMod.SetSelection hi #Edge subSelectionToReselect
                                     )
 
                                     if subObjectLevel == 4 or subObjectLevel == 5 then(
-                                        EditPolyMod.SetSelection $.modifiers[#Edit_Poly] #Face subSelectionToReselect
+                                        EditPolyMod.SetSelection hi #Face subSelectionToReselect
                                     )
                                 )
 
@@ -1154,6 +1167,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                 fn updateBSelectionPosOnFirstClickVariableFunction = (
                     if selection.count != 0 then(
                         if subObjectLevelIsZero() then(
+
                             bSelectionPosOnFirstClick = $.pos
                         )else(
                             bSelectionPosOnFirstClick = getPivotPosition()
@@ -1178,11 +1192,62 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                     )
                 )
 
-            fn stopDetectingSubselectionChangesFunction = (
-                undo off(
-              		  deleteAllChangeHandlers id:#SubObj_SelectionChange
-                ) -- (Undo end bracket)
-            )
+            -- Detect subselection changes
+
+                fn startDetectingSubselectionChangesFunction = (
+                		if selection.count == 1 then(
+                        if toolmode.commandmode == #move then(
+                            undo off(
+                                -- Editable poly
+
+                                    if (modPanel.getCurrentObject() as string) == "Editable Poly" then(
+                                        when select selection[1] changes id:#SubObj_SelectionChange do(
+                                            if subObjectLevelBeforeModifierParameterChange == subObjectLevel and CurrentModifierBeforeModifierParameterChange == ((modPanel.getCurrentObject()) as string) then( -- If not, the change registered was just moving to a different subObjectLevel
+                                                if (subObjectLevel == 1 and ((polyop.getVertSelection selection[1]).numberset) != 0) or ((subObjectLevel == 2 or subObjectLevel == 3) and ((polyop.getEdgeSelection selection[1]).numberset) != 0) or ((subObjectLevel == 4 or subObjectLevel == 5 ) and ((polyop.getFaceSelection selection[1]).numberset) != 0) then(
+                                                    updateBSelectionPosOnFirstClickVariableFunction()
+                                                )
+                                            )
+                                        )
+                                    )
+
+                                -- Edit poly
+
+                                    if matchPattern (modPanel.getCurrentObject() as string) Pattern:"Edit_Poly:*" then(
+                                        when parameters selection[1] changes id:#SubObj_SelectionChange do(
+                                            if subObjectLevelBeforeModifierParameterChange == subObjectLevel and CurrentModifierBeforeModifierParameterChange == ((modPanel.getCurrentObject()) as string) then( -- If not, the change registered was just moving to a different subObjectLevel
+                                                if (subObjectLevel == 1 and (EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string != "#{}" and (EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string != subselectionOnLastRun) or ((subObjectLevel == 2 or subObjectLevel == 3) and (EditPolyMod.GetSelection $.Edit_Poly #Edge) as string != "#{}" and (EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string != subselectionOnLastRun) or ((subObjectLevel == 4 or subObjectLevel == 5) and
+                                                (EditPolyMod.GetSelection $.Edit_Poly #Face) as string != "#{}" and (EditPolyMod.GetSelection $.Edit_Poly #Face) as string != subselectionOnLastRun) then(
+                                                    updateBSelectionPosOnFirstClickVariableFunction()
+                                                )
+
+                                                -- Update subselectionOnLastRun variable
+
+                                                    if subObjectLevel == 1 then(
+                                                        subselectionOnLastRun = ((EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string)
+                                                    )
+
+                                                    if subObjectLevel == 2 or subObjectLevel == 3 then(
+                                                        subselectionOnLastRun = ((EditPolyMod.GetSelection $.Edit_Poly #Edge) as string)
+                                                    )
+
+                                                    if subObjectLevel == 4 or subObjectLevel == 5 then(
+                                                        subselectionOnLastRun = ((EditPolyMod.GetSelection $.Edit_Poly #Face) as string)
+                                                    )
+                                            )
+                                        )
+                                    )
+                            ) -- (Undo end bracket)
+                        )
+                    )
+                )
+
+            -- Stop detecting subselection changes
+
+                fn stopDetectingSubselectionChangesFunction = (
+                    undo off(
+                  		  deleteAllChangeHandlers id:#SubObj_SelectionChange
+                    ) -- (Undo end bracket)
+                )
 
             -- Distance editText
 
@@ -1550,7 +1615,8 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                                 -- Edit poly
 
                                                     if matchPattern (modPanel.getCurrentObject() as string) Pattern:"Edit_Poly:*" then(
-                                                        EditPolyMod.MoveSelection $.modifiers[#Edit_Poly] [0,0,0]
+                                                        hi = modPanel.getCurrentObject()
+                                                        EditPolyMod.MoveSelection hi [0,0,0]
                                                     )
 
                                                 finalSubobjectPos = [0,0,0]
@@ -1739,10 +1805,10 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                                                 -- If this is the first move and a reference is to be snapped to, then don't move, as it will move to the wrong place. This has something to do with the mouse's position on the grids, which we should try to solve later, but currently we use this to at least treat the symptoms.
 
-                                                    if ((snapToXReference == false and snapToYReference == false and snapToZReference == false) or snapMode.node == undefined) or firstMove == false then(
+                                                    if ((snapToXReference == false and snapToYReference == false and snapToZReference == false)) or firstMove == false then( -- Note: Changed the snap clause from == to !=. Seemed like a mistake, but I may have been wrong.
                                                         -- If moving before the first freemove (to put object into correct postion on tool start if the user has moved the mouse), don't move if snapping to the z reference, as due to not having used the z grid, the position will be wrong. Note: it seems ov should be true anyway if this is the case, and therefore that this conditional is redundant, but in practice this isn't the case. I don't know why not (but haven't really looked into it).
 
-                                                            if not (snapToZReference == true and snapToXReference == false and snapToYReference == false) or movingBeforeFirstFreeMove == false then(
+                                                            if (snapToZReference == false or snapToXReference == true or snapToYReference == true) or movingBeforeFirstFreeMove == false then(
                                                                 -- Determine where to move
 
                                                                     if (snapToXReference == true or snapToYReference == true or snapToZReference == true) and (snapMode.node == undefined or modifierKeysObject.modifierKeys == modifierKeysObject.modifierKeys.shift) then(
@@ -2526,7 +2592,8 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                                                         -- Edit poly
 
                                                                             if matchPattern (modPanel.getCurrentObject() as string) Pattern:"Edit_Poly:*" then(
-                                                                                EditPolyMod.MoveSelection $.modifiers[#Edit_Poly] finalSubobjectPos
+                                                                                hi = modPanel.getCurrentObject()
+                                                                                EditPolyMod.MoveSelection hi finalSubobjectPos
                                                                             )
                                                                     )
                                                             )
@@ -2599,7 +2666,8 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                                     -- Edit poly
 
                                                         if matchPattern (modPanel.getCurrentObject() as string) Pattern:"Edit_Poly:*" then(
-                                                            EditPolyMod.MoveSelection $.modifiers[#Edit_Poly] finalSubobjectPos
+                                                            hi = modPanel.getCurrentObject()
+                                                            EditPolyMod.MoveSelection hi finalSubobjectPos
                                                         )
                                                 )
                                             )
@@ -2665,7 +2733,8 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                                     -- Edit poly
 
                                                         if matchPattern (modPanel.getCurrentObject() as string) Pattern:"Edit_Poly:*" then(
-                                                            EditPolyMod.MoveSelection $.modifiers[#Edit_Poly] finalSubobjectPos
+                                                            hi = modPanel.getCurrentObject()
+                                                            EditPolyMod.MoveSelection hi finalSubobjectPos
                                                         )
                                                 )
                                             )
@@ -2731,7 +2800,8 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                                     -- Edit poly
 
                                                         if matchPattern (modPanel.getCurrentObject() as string) Pattern:"Edit_Poly:*" then(
-                                                            EditPolyMod.MoveSelection $.modifiers[#Edit_Poly] finalSubobjectPos
+                                                            hi = modPanel.getCurrentObject()
+                                                            EditPolyMod.MoveSelection hi finalSubobjectPos
                                                         )
                                                 )
                                             )
@@ -2813,16 +2883,18 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                         -- Edit poly
 
                                             if matchPattern (modPanel.getCurrentObject() as string) Pattern:"Edit_Poly:*" then(
+                                                hi = modPanel.getCurrentObject()
+
                                                 if subObjectLevel == 1 and (EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string != "#{}" then(
-                                                    EditPolyMod.SetSelection $.modifiers[#Edit_Poly] #Vertex #{}
+                                                    EditPolyMod.SetSelection hi #Vertex #{}
                                                 )
 
                                                 if (subObjectLevel == 2 or subObjectLevel == 3) and (EditPolyMod.GetSelection $.Edit_Poly #Edge) as string != "#{}" then(
-                                                    EditPolyMod.SetSelection $.modifiers[#Edit_Poly] #Edge #{}
+                                                    EditPolyMod.SetSelection hi #Edge #{}
                                                 )
 
                                                 if (subObjectLevel == 4 or subObjectLevel == 5) and (EditPolyMod.GetSelection $.Edit_Poly #Face) as string != "#{}" then(
-                                                    EditPolyMod.SetSelection $.modifiers[#Edit_Poly] #Face #{}
+                                                    EditPolyMod.SetSelection hi #Face #{}
                                                 )
                                             )
 
@@ -2849,6 +2921,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                     testTimer.start()
 
                                     subObjectLevelBeforeModifierParameterChange = subObjectLevel
+                                    CurrentModifierBeforeModifierParameterChange = ((modPanel.getCurrentObject()) as string)
                                 )
                             )else(
                                 -- Reselect and relock the selection if the selection was changed due to undoing or redoing (which are capable of changing the selection even when it is locked, which turns selection lock off and triggers this function). There may be other things that can unwantedly trigger this function—if they are discovered, code shoud be added to catch this here.
@@ -3151,6 +3224,8 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                                         BetterToolsStartToolWhenMouseIsClickedTimer.start()
                                     )
+
+                                    stopDetectingSubselectionChangesFunction()
                                 )
 
                             -- Variables for the next run
@@ -3181,11 +3256,16 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                                     testTimer.start()
 
                                                     subObjectLevelBeforeModifierParameterChange = subObjectLevel
+                                                    CurrentModifierBeforeModifierParameterChange = ((modPanel.getCurrentObject()) as string)
 
                                                 BetterToolsGetWorldPointFromHWNDsTimer.start()
+
+                                                -- Add callback to update bSelectionPosOnFirstClick variable when the subselection changes
+
+                                                    startDetectingSubselectionChangesFunction()
                                             )else(
                                                 try(
-                                                    --stopDetectingSubselectionChangesFunction()
+                                                    stopDetectingSubselectionChangesFunction()
                                                 )catch()
 
                                                 BetterToolsStartToolWhenMouseIsClickedTimer.stop()
@@ -3193,11 +3273,11 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                     )
                                 )
 
-                            -- If the user has just changed from on subObject level to another and this has caused a (meaningful) change in Subselection count, then change to the relevant "and move" mode
+                            -- If the user has just changed from one subObject level to another and this has caused a (meaningful) change in Subselection count, then change to the relevant "and move" mode
 
                                 if moveInSubobjectMode == true then(
                                     if isCurrentModifierMoveable() then(
-                                        if subObjectLevel != subObjectLevelBeforeModifierParameterChange then(
+                                        if subObjectLevel != subObjectLevelBeforeModifierParameterChange or ((modPanel.getCurrentObject()) as string) != CurrentModifierBeforeModifierParameterChange then(
                                             if selectionAutoLockPreference == true then(
                                                 if determineWhetherSubselectionExistsFunction() == false then(
                                                     if selectAndMoveMode == false then( -- Only do the following if they're not already the case. This is mainly so that selection lock isn't toggled when it shouldn't be (could use selLocked() to get around that if needed, but would rather not run it as it takes time).
@@ -3206,6 +3286,10 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                                         BetterToolsGetWorldPointFromHWNDsTimer.start()
 
                                                         max spacebar
+
+                                                        -- Add callback to update bSelectionPosOnFirstClick variable when the subselection changes
+
+                                                            startDetectingSubselectionChangesFunction()
 
                                                         -- Restart timer to detect selection change
 
@@ -3220,7 +3304,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                                         max spacebar
 
                                                         try(
-                                                            --stopDetectingSubselectionChangesFunction()
+                                                            stopDetectingSubselectionChangesFunction()
                                                         )catch()
 
                                                         BetterToolsStartToolWhenMouseIsClickedTimer.start()
@@ -3229,6 +3313,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                             )
 
                                             subObjectLevelBeforeModifierParameterChange = subObjectLevel
+                                            CurrentModifierBeforeModifierParameterChange = ((modPanel.getCurrentObject()) as string)
                                         )
                                     )
                                 )
@@ -3390,13 +3475,11 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                     on distanceEditText entered str do(
                         if startMoving == true then(
                             if str as float != undefined and str as float != 0.0 then( -- Using mouse buttons, such as middle mouse button to orbit, can cause the editText to enter. This at least stops this from happening if the input was nothing/invalid.
-                                --if not referenceLineX.isHidden or not referenceLineY.isHidden or not referenceLineZ.isHidden then(
-                                    distanceEntered = str as float
+                                distanceEntered = str as float
 
-                                    BetterToolsSetFocusTimer.stop()
+                                BetterToolsSetFocusTimer.stop()
 
-                                    -- Note: there used to be code here to destroy the rollouts, but for some reason removing this code fixed the problem where focus wouldn't be properly set back to the max window, meaning mouse things would be picked up but keyboard input (such as hotkeys) woudn't until the user clicked somewhere in the Max window. The dialogs are still closed later in the code, so no problem removing the code from here.
-                                --)
+                                -- Note: there used to be code here to destroy the rollouts, but for some reason removing this code fixed the problem where focus wouldn't be properly set back to the max window, meaning mouse things would be picked up but keyboard input (such as hotkeys) woudn't until the user clicked somewhere in the Max window. The dialogs are still closed later in the code, so no problem removing the code from here.
                             )
                         )
                     )
@@ -3874,7 +3957,8 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                     -- Edit poly
 
                                         if matchPattern (modPanel.getCurrentObject() as string) Pattern:"Edit_Poly:*" then(
-                                            EditPolyMod.MoveSelection $.modifiers[#Edit_Poly] [bSelectionPosOnToolStart[1] - bSelectionPosOnFirstClick[1], bSelectionPosOnToolStart[2] - bSelectionPosOnFirstClick[2], bSelectionPosOnToolStart[3] - bSelectionPosOnFirstClick[3]]
+                                            hi = modPanel.getCurrentObject()
+                                            EditPolyMod.MoveSelection hi [bSelectionPosOnToolStart[1] - bSelectionPosOnFirstClick[1], bSelectionPosOnToolStart[2] - bSelectionPosOnFirstClick[2], bSelectionPosOnToolStart[3] - bSelectionPosOnFirstClick[3]]
                                         )
                                 )
 
@@ -3914,7 +3998,23 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                         mousePos2DOnFirstClick = undefined
 
-                        subselectionOnLastRun = undefined
+                        -- Update subselectionOnLastRun variable if relevant. Note: Not sure if the code after making it undefined is needed. I added this while trying to debug something, and this didn't solve it, so this part may have been fine before. Still seems logical to have though, so I've kept it.
+
+                            subselectionOnLastRun = undefined
+
+                            if matchPattern (modPanel.getCurrentObject() as string) Pattern:"Edit_Poly:*" then(
+                                if subObjectLevel == 1 then(
+                                    subselectionOnLastRun = ((EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string)
+                                )
+
+                                if subObjectLevel == 2 or subObjectLevel == 3 then(
+                                    subselectionOnLastRun = ((EditPolyMod.GetSelection $.Edit_Poly #Edge) as string)
+                                )
+
+                                if subObjectLevel == 4 or subObjectLevel == 5 then(
+                                    subselectionOnLastRun = ((EditPolyMod.GetSelection $.Edit_Poly #Face) as string)
+                                )
+                            )
 
                         -- Define selectionOnLastRound variable
 
@@ -4009,6 +4109,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                     testTimer.start()
 
                                     subObjectLevelBeforeModifierParameterChange = subObjectLevel
+                                    CurrentModifierBeforeModifierParameterChange = ((modPanel.getCurrentObject()) as string)
                                 )
                         )else(
                             selectAndMoveMode = false
@@ -4080,7 +4181,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
             -- Change variable when selection is changed (needs to stay below the startbetterMoveToolFunction function)
 
                 fn changeVariableWhenSelectionIsChangedFunction = (
-                    try(
+                    --try(
                         -- Set axis constraints to undefined any time the gizmo stops being clicked on. Note: This may need to moved to its own timer-activated function if selection lock functionality is changed from being always on if a selection exists, as if this happens then sometimes select and move mode will be false (meaning this function isn't constantly running on a timer) while a gizmo exists.
 
                             if toolmode.axisconstraints != undefined then(
@@ -4128,7 +4229,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                                     -- Editable poly
 
                                                         if (modPanel.getCurrentObject() as string) == "Editable Poly" then(
-                                                            if subObjectLevelBeforeModifierParameterChange == subObjectLevel then( -- If not, the change registered was just moving to a different subObjectLevel
+                                                            if subObjectLevelBeforeModifierParameterChange == subObjectLevel and CurrentModifierBeforeModifierParameterChange == ((modPanel.getCurrentObject()) as string) then( -- If not, the change registered was just moving to a different subObjectLevel
                                                                 if (subObjectLevel == 1 and ((polyop.getVertSelection selection[1]).numberset) != 0) then(
                                                                     SubselectionCount = ((polyop.getVertSelection selection[1]).numberset)
                                                                 )
@@ -4146,7 +4247,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                                     -- Edit poly
 
                                                         if matchPattern (modPanel.getCurrentObject() as string) Pattern:"Edit_Poly:*" then(
-                                                            if subObjectLevelBeforeModifierParameterChange == subObjectLevel then( -- If not, the change registered was just moving to a different subObjectLevel
+                                                            if subObjectLevelBeforeModifierParameterChange == subObjectLevel and CurrentModifierBeforeModifierParameterChange == ((modPanel.getCurrentObject()) as string) then( -- If not, the change registered was just moving to a different subObjectLevel
                                                                 if (subObjectLevel == 1 and (EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string != "#{}") then(
                                                                     -- Determine whether one or multple subobjects are selected
 
@@ -4182,7 +4283,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                                     -- Editable mesh
 
                                                         if (modPanel.getCurrentObject() as string) == "Editable Mesh" then(
-                                                            if subObjectLevelBeforeModifierParameterChange == subObjectLevel then( -- If not, the change registered was just moving to a different subObjectLevel
+                                                            if subObjectLevelBeforeModifierParameterChange == subObjectLevel and CurrentModifierBeforeModifierParameterChange == ((modPanel.getCurrentObject()) as string) then( -- If not, the change registered was just moving to a different subObjectLevel
                                                                 if subObjectLevel == 1 and ((getVertSelection selection[1]) as string) != "#{}" then(
                                                                     -- Determine whether one or multple subobjects are selected
 
@@ -4303,7 +4404,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                                         -- Click and move stuff
 
                                                             if subObjectLevelIsZero() then(
-                                                                if moveInSubobjectMode == false then( -- If not, this means the callback was triggered by changing in or out of subobject level, so nothing should be done
+                                                                if moveInSubobjectMode == false then( -- If not, this means the callback was triggered by changing into subobject level, so nothing should be done
                                                                     -- If mouse is clicking on either selection or nothing, wait until user unclicks and start the tool if something is still selected
 
                                                                         if userIsClickingOnEitherSelectionOrNothing() then(
@@ -4453,11 +4554,9 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                                                                     )
                                                                                 )
                                                                             )
-
-
                                                                 )
                                                             )else(
-                                                                if moveInSubobjectMode == true then( -- If not, this means the callback was triggered by changing in or out of subobject level, so nothing should be done
+                                                                if moveInSubobjectMode == true then( -- If not, this means the callback was triggered by changing out of subobject level, so nothing should be done
                                                                     -- If mouse is clicking on either selection or nothing, wait until user unclicks and start the tool if something is still selected
 
                                                                         if userIsClickingOnEitherSelectionOrNothing() then(
@@ -5047,56 +5146,9 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                             )else(
                                 toolWasStarted = false
                             )
-                    )catch()
-                )
-
-            -- Detect subselection changes
-
-                fn startDetectingSubselectionChangesFunction = (
-                		if selection.count == 1 then(
-                        if toolmode.commandmode == #move then(
-                            undo off(
-                                -- Editable poly
-
-                                    if (modPanel.getCurrentObject() as string) == "Editable Poly" then(
-                                        when select selection[1] changes id:#SubObj_SelectionChange do(
-                                            if subObjectLevelBeforeModifierParameterChange == subObjectLevel then( -- If not, the change registered was just moving to a different subObjectLevel
-                                                if (subObjectLevel == 1 and ((polyop.getVertSelection selection[1]).numberset) != 0) or ((subObjectLevel == 2 or subObjectLevel == 3) and ((polyop.getEdgeSelection selection[1]).numberset) != 0) or ((subObjectLevel == 4 or subObjectLevel == 5 ) and ((polyop.getFaceSelection selection[1]).numberset) != 0) then(
-                                                    updateBSelectionPosOnFirstClickVariableFunction()
-                                                )
-                                            )
-                                        )
-                                    )
-
-                                -- Edit poly
-
-                                    if matchPattern (modPanel.getCurrentObject() as string) Pattern:"Edit_Poly:*" then(
-                                        when parameters selection[1] changes id:#SubObj_SelectionChange do(
-                                            if subObjectLevelBeforeModifierParameterChange == subObjectLevel then( -- If not, the change registered was just moving to a different subObjectLevel
-                                                if (subObjectLevel == 1 and (EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string != "#{}" and (EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string != subselectionOnLastRun) or ((subObjectLevel == 2 or subObjectLevel == 3) and (EditPolyMod.GetSelection $.Edit_Poly #Edge) as string != "#{}" and (EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string != subselectionOnLastRun) or ((subObjectLevel == 4 or subObjectLevel == 5) and
-                                                (EditPolyMod.GetSelection $.Edit_Poly #Face) as string != "#{}" and (EditPolyMod.GetSelection $.Edit_Poly #Face) as string != subselectionOnLastRun) then(
-                                                    updateBSelectionPosOnFirstClickVariableFunction()
-                                                )
-
-                                                -- Update subselectionOnLastRun variable
-
-                                                    if subObjectLevel == 1 then(
-                                                        subselectionOnLastRun = ((EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string)
-                                                    )
-
-                                                    if subObjectLevel == 2 or subObjectLevel == 3 then(
-                                                        subselectionOnLastRun = ((EditPolyMod.GetSelection $.Edit_Poly #Edge) as string)
-                                                    )
-
-                                                    if subObjectLevel == 4 or subObjectLevel == 5 then(
-                                                        subselectionOnLastRun = ((EditPolyMod.GetSelection $.Edit_Poly #Face) as string)
-                                                    )
-                                            )
-                                        )
-                                    )
-                            ) -- (Undo end bracket)
-                        )
-                    )
+                    --)catch(
+                        --print "Caught"
+                    --)
                 )
 
         -- Timers
@@ -5309,7 +5361,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                     -- Move the object to the current mouse position if relevant
 
-                        if selectAndMoveMode == true and mousePos2DOnFirstClick != mouse.pos then( -- If selectAndMoveMode is true, this means the worldPointFromHWND timer was used before clicking and the worldPointFromHWND variable is defined. If not, we don't have data on worldpoint until the first freeMove, so the equivalent code to what happens below will happen on first freeMove. This does make the code convoluted, but is done so we don't need to use the worldPointFromHWND timer if we don't need to (if selectAndMoveMode is false, the freeMove registers as soon as we click). Need to test how the timer drops performance—if negligable, then we can run it regardless of selectAndMoveMode and have all the code here. The mousePos2DOnFirstClick part is because worldPointFromHWND can give strange results if the mouse is in the same place as it was when we first clicked. we compare the 2D values instad of 3D because the latter will be different if a snap was active on click, since we are no longer snapped to that point.
+                        if mousePos2DOnFirstClick != mouse.pos then(
                             onMousePointFunctionWasRunOnStart = true
 
                             shiftKey = false
@@ -5453,7 +5505,8 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                             -- Edit poly
 
                                                 if matchPattern (modPanel.getCurrentObject() as string) Pattern:"Edit_Poly:*" then(
-                                                    EditPolyMod.MoveSelection $.modifiers[#Edit_Poly] [0, 0, 0]
+                                                    hi = modPanel.getCurrentObject()
+                                                    EditPolyMod.MoveSelection hi [0, 0, 0]
                                                 )
                                         )catch()
                                     )
@@ -5492,11 +5545,13 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
                                                 -- Edit poly
 
                                                     if matchPattern (modPanel.getCurrentObject() as string) Pattern:"Edit_Poly:*" then(
-                                                        EditPolyMod.commit $.modifiers[#Edit_Poly]
+                                                        hi = modPanel.getCurrentObject()
 
-                                                        EditPolyMod.MoveSelection $.modifiers[#Edit_Poly] finalSubobjectPos
+                                                        EditPolyMod.commit hi
 
-                                                        EditPolyMod.commit $.modifiers[#Edit_Poly]
+                                                        EditPolyMod.MoveSelection hi finalSubobjectPos
+
+                                                        EditPolyMod.commit hi
                                                     )
                                             )catch()
                                         )
@@ -5691,6 +5746,16 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
     -- Start tool
 
+        -- Try to destroy rollouts, in case they exist
+
+            try(
+                destroyDialog enterDistanceRollout
+            )catch()
+
+            try(
+                destroyDialog displayDistanceRollout
+            )catch()
+
         -- Variables
 
             -- C++ guff
@@ -5791,7 +5856,23 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                                 -- Variables
 
-                                    subselectionOnLastRun = undefined
+                                    -- Update subselectionOnLastRun variable if relevant. Note: Not sure if the code after making it undefined is needed. I added this while trying to debug something, and this didn't solve it, so this part may have been fine before. Still seems logical to have though, so I've kept it.
+
+                                        subselectionOnLastRun = undefined
+
+                                        if matchPattern (modPanel.getCurrentObject() as string) Pattern:"Edit_Poly:*" then(
+                                            if subObjectLevel == 1 then(
+                                                subselectionOnLastRun = ((EditPolyMod.GetSelection $.Edit_Poly #Vertex) as string)
+                                            )
+
+                                            if subObjectLevel == 2 or subObjectLevel == 3 then(
+                                                subselectionOnLastRun = ((EditPolyMod.GetSelection $.Edit_Poly #Edge) as string)
+                                            )
+
+                                            if subObjectLevel == 4 or subObjectLevel == 5 then(
+                                                subselectionOnLastRun = ((EditPolyMod.GetSelection $.Edit_Poly #Face) as string)
+                                            )
+                                        )
 
                                     userHasDraggedSubselection = false
 
@@ -6051,6 +6132,7 @@ MacroScript betterMove category:"BetterTools" tooltip:"BetterMove" Icon:#("Bette
 
                                             if not subObjectLevelIsZero() then(
                                                 subObjectLevelBeforeModifierParameterChange = subObjectLevel
+                                                CurrentModifierBeforeModifierParameterChange = ((modPanel.getCurrentObject()) as string)
                                             )
 
                                             -- Add callback to update bSelectionPosOnFirstClick variable when the subselection changes
