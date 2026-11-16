@@ -1,0 +1,11 @@
+{
+  "_doc": "Where Max (Windows) hands finished renders to the compose step (Mac now, the render PC later). queue: a folder both sides can see; Max drops one job file per finished render. path_maps: Windows prefix → this machine's path, first match wins.",
+  "queue_windows": "\\\\Mac\\ClaudeMax\\.queue",
+  "queue_local": ".queue",
+  "path_maps": [
+    ["\\\\Mac\\ClaudeMax", "/Users/josh/Code/Scripts/max"],
+    ["\\\\Mac\\Home", "/Users/josh"],
+    ["Z:", "/Users/josh"]
+  ],
+  "matte_min_coverage": 0.0002
+}

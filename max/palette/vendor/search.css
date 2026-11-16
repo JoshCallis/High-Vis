@@ -1,0 +1,89 @@
+/* search.css — the command-search palette, shared (see search.js). Rows reuse .ac-row /
+   .ac-name / .ac-val / .ac-mark, which the page defines; the right-click sheet and the
+   field live here. Served as /search.css. */
+#squery {
+  display: block; width: 100%;
+  background: transparent; border: 0; outline: 0;
+  color: var(--text); font: inherit;
+  padding: 9px 10px;
+}
+/* Six rows visible (--row-h is 30px, fusion_ui/theme.css), the rest reached by
+   scrolling — arrow keys keep the highlighted one in view (see index.js). */
+#sresults { max-height: calc(var(--row-h) * 6); overflow-y: auto; }
+#sresults.hide { display: none; }
+/* Shown only as a real child element when a non-blank query matched nothing — with
+   nothing listed before you type, an empty panel is the resting state, not an error,
+   so this is never driven by :empty. */
+.ac-empty {
+  padding: 9px 10px; color: var(--text-faint); font-size: 12px;
+}
+/* The chord a command is already bound to, Fusion's own or ours — reused by the sheet
+   below for the current-chord chip. A chip rather than plain text so it reads as a key
+   and not a value. */
+.ac-chord {
+  margin-left: auto; flex-shrink: 0;
+  padding: 1px 6px; border-radius: 3px; font-size: 10px; letter-spacing: .02em;
+  color: var(--text-faint); background: rgba(255,255,255,.05);
+  display: inline-flex; align-items: center; align-self: center; white-space: nowrap;
+}
+/* The hand / Saturn glyph a held binding opens with (fingers.js). */
+.ac-chord svg { width: 1.5em; height: 1.5em; margin-right: 2px; overflow: visible; }
+.ac-row.sel .ac-chord { color: var(--text); }
+/* A long name gives way to the key rather than pushing it off the row. */
+#sresults .ac-name { flex-shrink: 1; min-width: 0; overflow: hidden;
+                     text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── The per-row sheet ──────────────────────────────────────────────────────
+   Replaces #sresults in the same panel on a right-click — see index.js. Plain rows
+   rather than a form grid: one field wide, unlike the New Component panel's six. */
+#ssheet.hide { display: none; }
+#ssheet { padding: 10px; }
+#ssname { color: var(--text-bright); font-size: 13px; font-weight: 600;
+          margin-bottom: 10px; }
+.ssrow { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.ssrow > label { color: var(--text-dim); font-size: 11px; width: 60px; flex-shrink: 0; }
+.sscapture {
+  flex: 1; min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
+  color: var(--text); background: rgba(255,255,255,.04);
+  border: 1px solid transparent; border-radius: 3px;
+  padding: 4px 8px; cursor: pointer; caret-color: transparent;
+}
+.ssname-in {
+  flex: 1; min-width: 0; font: inherit; font-size: 12px;
+  color: var(--text); background: rgba(255,255,255,.04);
+  border: 1px solid transparent; border-radius: 3px; padding: 4px 8px; outline: 0;
+}
+.ssname-in:focus { border-color: var(--accent); }
+.sscapture:disabled { cursor: default; color: var(--text-faint); }
+.sscapture.arm { border-color: var(--accent); color: var(--accent); }
+#ssmsg { color: var(--text-faint); font-size: 11px; margin: -2px 0 8px 68px; }
+#ssmsg.err { color: var(--err); }
+/* Copied from remap/index.css's .sit-checks (:232-235) — same Applies In language,
+   just laid out flush left instead of on a form grid. */
+.sit-checks { display: flex; gap: 14px; }
+.sit-checks label { display: flex; align-items: center; gap: 5px;
+                     color: var(--text); font-size: 12px; }
+.sit-checks input[type="checkbox"] { margin: 0; width: auto; height: auto; padding: 0; }
+#ssactions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 4px; }
+/* The Pinned checkbox, sSheetActions' first child — same label shape as .sit-checks,
+   just alone rather than in a row of three. */
+.sspin { display: flex; align-items: center; gap: 5px; color: var(--text); font-size: 12px; }
+.sspin input[type="checkbox"] { margin: 0; width: auto; height: auto; padding: 0; }
+/* A row the Show In store hides, listed anyway because "Show hidden" is on. */
+.ac-row.ac-hidden .ac-name { opacity: .45; font-style: italic; }
+/* ⌘-clicked into a set for the multi sheet. */
+.ac-row.picked { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+.ac-row.picked.sel { background: color-mix(in srgb, var(--accent) 32%, transparent); }
+#ssactions button {
+  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1);
+  border-radius: 3px; color: var(--text); font: inherit; font-size: 12px;
+  padding: 4px 12px; cursor: pointer;
+}
+#ssactions button:hover { background: var(--panel-hover); }
+.ssrow button { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1);
+                border-radius: 3px; color: var(--text); font: inherit; font-size: 11px;
+                padding: 3px 9px; cursor: pointer; flex-shrink: 0; }
+.ssrow button:hover { background: var(--panel-hover); }
+.ssrow button:disabled { opacity: .35; cursor: default; }
+.ssrow button.danger:hover { border-color: var(--err); color: var(--err); }

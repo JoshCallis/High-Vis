@@ -1,0 +1,51 @@
+/* max/palette — ps_palette/index.css's panel and rows, plus what Windows lacks: the
+   Mac's system font (Inter here, bundled — SF isn't licensed off Apple hardware) and a
+   macOS-style scroll thumb (Chromium on Windows draws a full scroll bar otherwise). */
+@font-face { font-family: "Inter"; font-weight: 400; src: url(fonts/Inter-Regular.ttf); }
+@font-face { font-family: "Inter"; font-weight: 500; src: url(fonts/Inter-Medium.ttf); }
+@font-face { font-family: "Inter"; font-weight: 600; src: url(fonts/Inter-SemiBold.ttf); }
+@font-face { font-family: "Inter"; font-weight: 700; src: url(fonts/Inter-Bold.ttf); }
+/* No shadow room: Qt's translucent window doesn't composite in the VM, so the 26 px
+   gutter painted as a black frame. The panel IS the window; palette.py rounds it. */
+:root { --panel-gutter: 0px; --panel-shadow: none; }
+:root { --font: "Inter", "Segoe UI Variable Text", "Segoe UI", sans-serif;
+        --font-mono: "Cascadia Mono", Consolas, monospace;
+        --fs-body: 14px; --row-h: 32px; }
+
+html, body { background: transparent; overflow: hidden; margin: 0; }
+body { -webkit-font-smoothing: antialiased; }
+#spanel { width: 300px; }
+#spanel.wide { width: 440px; }
+.field { position: relative; border-bottom: var(--panel-sep); }
+.field:last-of-type { border-bottom: 0; }
+#squery { padding: 10px 12px; }
+.ac-row {
+  display: flex; align-items: baseline; gap: 8px;
+  height: var(--row-h); line-height: var(--row-h); padding: 0 12px;
+  border-bottom: var(--panel-sep); cursor: default;
+}
+.ac-row:last-child { border-bottom: 0; }
+.ac-row:hover { background: var(--panel-hover); }
+.ac-row.sel { background: var(--panel-sel); }
+.ac-mark {
+  width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0;
+  align-self: center; margin-left: 8px;
+  background: var(--accent); visibility: hidden;
+}
+.ac-row.sel .ac-mark { visibility: visible; }
+.ac-name { color: var(--text); flex-shrink: 0; white-space: nowrap; }
+.ac-row.sel .ac-name { color: var(--text-bright); }
+.ac-name b { color: var(--accent); font-weight: 600; }
+.ac-val { margin-left: auto; color: var(--text-faint); font-size: 11px;
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ac-chord { font-size: 11px; line-height: 1.5; }
+.sscapture { font-family: var(--font-mono); }
+
+/* The thumb only, thin and rounded, no track, no arrows — what macOS draws. */
+#sresults::-webkit-scrollbar { width: 8px; background: transparent; }
+#sresults::-webkit-scrollbar-track, #sresults::-webkit-scrollbar-corner { background: transparent; }
+#sresults::-webkit-scrollbar-button { display: none; height: 0; }
+#sresults::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 4px;
+                                     border: 2px solid transparent; background-clip: padding-box; }
+#sresults::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hover);
+                                           background-clip: padding-box; }

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Runs compose/run.py whenever 3ds Max drops a render job into max/.queue.
+     Enable:  ln -sf ~/Code/Scripts/max/launchd/com.callis.compose.plist ~/Library/LaunchAgents/ && launchctl load ~/Library/LaunchAgents/com.callis.compose.plist -->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.callis.compose</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/josh/Code/Scripts/max/.venv/bin/python</string>
+    <string>-m</string>
+    <string>compose.run</string>
+  </array>
+  <key>WorkingDirectory</key><string>/Users/josh/Code/Scripts/max</string>
+  <key>WatchPaths</key>
+  <array><string>/Users/josh/Code/Scripts/max/.queue</string></array>
+  <key>StandardOutPath</key><string>/Users/josh/Code/Scripts/max/.queue/launchd.out</string>
+  <key>StandardErrorPath</key><string>/Users/josh/Code/Scripts/max/.queue/launchd.out</string>
+</dict>
+</plist>

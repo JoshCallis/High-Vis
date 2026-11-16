@@ -1,0 +1,136 @@
+{
+  "ctrl+alt+shift+f4": {
+    "kind": "space",
+    "key": "f"
+  },
+  "ctrl+alt+shift+f7": {
+    "kind": "chord",
+    "seq": "cmd+w"
+  },
+  "ctrl+alt+shift+f8": {
+    "kind": "fingers",
+    "fingers": 2,
+    "key": "z"
+  },
+  "ctrl+alt+shift+i": {
+    "kind": "fingers",
+    "fingers": 2,
+    "key": "space"
+  },
+  "ctrl+alt+shift+a": {
+    "kind": "fingers",
+    "fingers": 2,
+    "key": "d"
+  },
+  "ctrl+alt+shift+b": {
+    "kind": "fingers",
+    "fingers": 2,
+    "key": "f"
+  },
+  "ctrl+alt+shift+c": {
+    "kind": "space",
+    "key": "s"
+  },
+  "ctrl+alt+shift+d": {
+    "kind": "space",
+    "key": "d"
+  },
+  "ctrl+alt+shift+e": {
+    "kind": "space",
+    "key": "c"
+  },
+  "ctrl+alt+shift+f": {
+    "kind": "space",
+    "key": "r"
+  },
+  "ctrl+alt+shift+j": {
+    "kind": "fingers",
+    "fingers": 1,
+    "key": "space"
+  },
+  "ctrl+alt+shift+f6": {
+    "kind": "fingers",
+    "fingers": 1,
+    "key": "t"
+  },
+  "ctrl+alt+shift+f9": {
+    "kind": "fingers",
+    "fingers": 1,
+    "key": "f"
+  },
+  "ctrl+alt+shift+f10": {
+    "kind": "fingers",
+    "fingers": 1,
+    "key": "w"
+  },
+  "ctrl+alt+shift+f11": {
+    "kind": "fingers",
+    "fingers": 1,
+    "key": "r"
+  },
+  "ctrl+alt+shift+f12": {
+    "kind": "fingers",
+    "fingers": 1,
+    "key": "z"
+  },
+  "ctrl+alt+shift+k": {
+    "kind": "fingers",
+    "fingers": 1,
+    "key": "q"
+  },
+  "ctrl+alt+shift+m": {
+    "kind": "fingers",
+    "fingers": 1,
+    "key": "g"
+  },
+  "ctrl+alt+shift+f5": {
+    "kind": "fingers",
+    "fingers": 1,
+    "key": "a"
+  },
+  "ctrl+alt+shift+h": {
+    "kind": "fingers",
+    "fingers": 1,
+    "key": "s"
+  },
+  "ctrl+alt+shift+g": {
+    "kind": "fingers",
+    "fingers": 1,
+    "key": "d"
+  },
+  "ctrl+alt+shift+l": {
+    "kind": "fingers",
+    "fingers": 3,
+    "key": "space"
+  },
+  "ctrl+alt+shift+n": {
+    "kind": "space",
+    "key": "a"
+  },
+  "ctrl+alt+shift+o": {
+    "kind": "chord",
+    "seq": "cmd+c"
+  },
+  "ctrl+alt+shift+p": {
+    "kind": "chord",
+    "seq": "cmd+v"
+  },
+  "ctrl+alt+shift+q": {
+    "kind": "fingers",
+    "fingers": 3,
+    "key": "a"
+  },
+  "ctrl+alt+shift+r": {
+    "kind": "fingers",
+    "fingers": 3,
+    "key": "q"
+  },
+  "ctrl+alt+shift+s": {
+    "kind": "space",
+    "key": "e"
+  },
+  "ctrl+alt+shift+t": {
+    "kind": "space",
+    "key": "x"
+  }
+}

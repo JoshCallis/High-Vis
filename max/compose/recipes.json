@@ -1,0 +1,94 @@
+{
+  "_doc": "Photoshop layer stack per renderer, top to bottom. {pass} = a render pass by canonical key (see labels); {glass} = a pass from the separate glass render, masked by the Glass matte; {group} with no children is kept as an empty working group. Blend modes: normal, multiply, linear dodge, screen, pass through. Missing passes are skipped and emptied groups dropped unless 'keep' is set.",
+
+  "labels": {
+    "beauty": "Beauty Pass", "background": "Background", "atmosphere": "Atmosphere",
+    "diffuse_filter": "Diffuse", "raw_lighting": "Raw Lighting", "raw_gi": "Raw GI", "sun": "Sun",
+    "reflection": "Reflection", "raw_reflection": "Raw Reflection", "reflection_filter": "Reflection Filter",
+    "refraction": "Refraction", "raw_refraction": "Raw Refraction", "refraction_filter": "Refraction Filter",
+    "specular": "Specular", "self_illum": "Self Illumination", "ao": "AO", "z": "Z-Depth",
+    "normals": "Normals", "diffuse_direct": "Diffuse Direct", "diffuse_indirect": "Diffuse Indirect",
+    "coat": "Coat", "sheen": "Sheen", "transmission": "Transmission", "sss": "SSS",
+    "translucency": "Translucency"
+  },
+
+  "common_top": [
+    {"group": "Overall Adjustments", "keep": true, "children": [
+      {"group": "Entourage", "keep": true, "children": [
+        {"group": "Entourage", "keep": true},
+        {"group": "Shadow", "keep": true}
+      ]}
+    ]},
+    {"group": "Border", "keep": true}
+  ],
+
+  "vray": [
+    {"group": "Overlay", "blend": "pass through", "children": [
+      {"pass": "beauty", "visible": false},
+      {"pass": "atmosphere", "visible": false},
+      {"pass": "z", "visible": false},
+      {"group": "AO", "blend": "multiply", "opacity": 30, "children": [{"pass": "ao"}]},
+      {"pass": "self_illum", "blend": "linear dodge"}
+    ]},
+    {"group": "Total Lighting", "blend": "linear dodge", "children": [
+      {"pass": "diffuse_filter", "blend": "multiply"},
+      {"pass": "sun", "blend": "linear dodge"},
+      {"pass": "raw_lighting", "blend": "linear dodge"},
+      {"pass": "raw_gi", "blend": "linear dodge"}
+    ]},
+    {"group": "Reflection", "blend": "linear dodge", "children": [
+      {"glass": "reflection", "name": "Glass", "blend": "linear dodge"},
+      {"pass": "reflection_filter", "blend": "multiply"},
+      {"pass": "raw_reflection"}
+    ]},
+    {"group": "Refraction", "blend": "linear dodge", "children": [
+      {"pass": "refraction_filter", "blend": "multiply"},
+      {"pass": "raw_refraction"}
+    ]},
+    {"group": "Specular", "blend": "linear dodge", "children": [{"pass": "specular"}]},
+    {"group": "Background", "children": [{"pass": "background"}]}
+  ],
+
+  "arnold": [
+    {"group": "Overlay", "blend": "pass through", "children": [
+      {"pass": "z", "visible": false},
+      {"pass": "self_illum", "blend": "linear dodge"}
+    ]},
+    {"group": "Specular", "blend": "linear dodge", "children": [
+      {"glass": "reflection", "name": "Glass", "blend": "linear dodge"},
+      {"pass": "coat", "blend": "linear dodge"},
+      {"pass": "sheen", "blend": "linear dodge"},
+      {"pass": "specular", "blend": "linear dodge"}
+    ]},
+    {"group": "Transmission", "blend": "linear dodge", "children": [{"pass": "transmission"}]},
+    {"group": "SSS", "blend": "linear dodge", "children": [{"pass": "sss"}]},
+    {"group": "Diffuse", "blend": "linear dodge", "children": [
+      {"pass": "diffuse_direct", "blend": "linear dodge"},
+      {"pass": "diffuse_indirect", "blend": "linear dodge"}
+    ]},
+    {"group": "Atmosphere", "blend": "linear dodge", "children": [{"pass": "atmosphere"}]},
+    {"group": "Background", "children": [{"pass": "background"}]}
+  ],
+
+  "corona": [
+    {"group": "Overlay", "blend": "pass through", "children": [
+      {"pass": "z", "visible": false},
+      {"pass": "self_illum", "blend": "linear dodge"}
+    ]},
+    {"group": "Reflection", "blend": "linear dodge", "children": [
+      {"glass": "reflection", "name": "Glass", "blend": "linear dodge"},
+      {"pass": "reflection"}
+    ]},
+    {"group": "Refraction", "blend": "linear dodge", "children": [{"pass": "refraction"}]},
+    {"group": "Lighting", "blend": "linear dodge", "children": [
+      {"pass": "raw_lighting", "blend": "linear dodge"},
+      {"pass": "raw_gi", "blend": "linear dodge"},
+      {"pass": "translucency", "blend": "linear dodge"}
+    ]},
+    {"group": "Atmosphere", "blend": "linear dodge", "children": [{"pass": "atmosphere"}]}
+  ],
+
+  "common_bottom": [
+    {"group": "Normals", "visible": false, "children": [{"pass": "normals"}]}
+  ]
+}

@@ -1,0 +1,9 @@
+.shots/
+__pycache__/
+.tmp/
+.venv/
+.queue/
+.state/
+cursors/build/
+scroll/backups/
+scroll/live.json

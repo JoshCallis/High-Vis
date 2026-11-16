@@ -1,0 +1,246 @@
+[
+ {
+  "name": "Cameras"
+ },
+ {
+  "name": "Environment",
+  "kids": [
+   {
+    "name": "Sky"
+   },
+   {
+    "name": "Sun"
+   }
+  ]
+ },
+ {
+  "name": "Miscellaneous",
+  "kids": [
+   {
+    "name": "Drafting",
+    "kids": [
+     {
+      "name": "Bitmaps"
+     },
+     {
+      "name": "Linework"
+     }
+    ]
+   },
+   {
+    "name": "Linework"
+   }
+  ]
+ },
+ {
+  "name": "Geometry",
+  "kids": [
+   {
+    "name": "Building",
+    "kids": [
+     {
+      "name": "Balustrades",
+      "render": true
+     },
+     {
+      "name": "Ceilings",
+      "render": true
+     },
+     {
+      "name": "Cladding",
+      "render": true
+     },
+     {
+      "name": "Floors",
+      "render": true
+     },
+     {
+      "name": "Glass",
+      "render": true
+     },
+     {
+      "name": "Joinery",
+      "render": true
+     },
+     {
+      "name": "Mechanics",
+      "render": true
+     },
+     {
+      "name": "Miscellaneous",
+      "render": true
+     },
+     {
+      "name": "Mullions",
+      "render": true
+     },
+     {
+      "name": "Rooves",
+      "render": true
+     },
+     {
+      "name": "Signage",
+      "render": true
+     },
+     {
+      "name": "Spandrels",
+      "render": true
+     },
+     {
+      "name": "Structure",
+      "render": true
+     },
+     {
+      "name": "Walls",
+      "kids": [
+       {
+        "name": "External Walls",
+        "render": true
+       },
+       {
+        "name": "Internal Walls"
+       }
+      ],
+      "render": true
+     },
+     {
+      "name": "Window Frames",
+      "render": true
+     }
+    ],
+    "render": true
+   },
+   {
+    "name": "Context",
+    "kids": [
+     {
+      "name": "Background",
+      "render": true
+     },
+     {
+      "name": "Miscellaneous",
+      "render": true
+     },
+     {
+      "name": "Paving",
+      "render": true
+     },
+     {
+      "name": "Roads",
+      "render": true
+     },
+     {
+      "name": "Surrounding Buildings",
+      "render": true
+     },
+     {
+      "name": "Terrain",
+      "render": true
+     }
+    ],
+    "render": true
+   },
+   {
+    "name": "Landscaping",
+    "kids": [
+     {
+      "name": "Curbs",
+      "render": true
+     },
+     {
+      "name": "Miscellaneous",
+      "render": true
+     },
+     {
+      "name": "Paving",
+      "render": true
+     },
+     {
+      "name": "Planters",
+      "render": true
+     },
+     {
+      "name": "Roads",
+      "render": true
+     },
+     {
+      "name": "Terrain",
+      "render": true
+     }
+    ],
+    "render": true
+   },
+   {
+    "name": "Population",
+    "kids": [
+     {
+      "name": "Electronics",
+      "render": true
+     },
+     {
+      "name": "Entourage",
+      "kids": [
+       {
+        "name": "People",
+        "render": true
+       },
+       {
+        "name": "Vehicles",
+        "render": true
+       }
+      ],
+      "render": true
+     },
+     {
+      "name": "Furniture",
+      "render": true
+     },
+     {
+      "name": "Lighting",
+      "kids": [
+       {
+        "name": "Light Fittings"
+       },
+       {
+        "name": "Lights"
+       }
+      ],
+      "render": true
+     },
+     {
+      "name": "Miscellaneous",
+      "render": true
+     },
+     {
+      "name": "Vegitation",
+      "kids": [
+       {
+        "name": "Grass",
+        "render": true
+       },
+       {
+        "name": "Plants",
+        "render": true
+       },
+       {
+        "name": "Substrate",
+        "render": true
+       },
+       {
+        "name": "Trees",
+        "render": true
+       }
+      ],
+      "render": true
+     },
+     {
+      "name": "Water",
+      "render": true
+     }
+    ],
+    "render": true
+   }
+  ],
+  "render": true
+ }
+]

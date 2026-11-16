@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Max Palette</title>
+<link rel="stylesheet" href="vendor/theme.css">
+<link rel="stylesheet" href="index.css">
+<link rel="stylesheet" href="vendor/search.css">
+
+<!-- 3ds Max's command search — fusion_ui/search.js (vendored: see sync.sh), the same kit
+     Fusion's and Photoshop's palettes run, in a Qt web view inside Max
+     (callis/palette.py). index.js is only the Max adapter. -->
+<div id="spanel" class="fpanel">
+  <div class="field" id="fsearch">
+    <input id="squery" type="text" spellcheck="false" autocomplete="off"
+           placeholder="Search commands">
+  </div>
+  <div id="sresults" class="fscroll"></div>
+  <div id="ssheet" class="hide"></div>
+</div>
+<script src="vendor/qwebchannel.js"></script>
+<script src="vendor/fingers.js"></script>
+<script src="vendor/search.js"></script>
+<script src="index.js"></script>

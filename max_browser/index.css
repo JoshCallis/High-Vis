@@ -1,0 +1,104 @@
+/* Max Browser — page rules only. Palette, type, row metrics and the scrollbar come from
+   /theme.css; the row look follows fusion_browser/index.css so the two browsers read
+   the same (sizes, weights, indent, kind colours, no twirls). */
+:root {
+  --sel-lighten:0%; --sel-darken:0%;
+  --sel-adj: color-mix(in srgb, black var(--sel-darken), color-mix(in srgb, white var(--sel-lighten), var(--sel)));
+}
+/* Transparent: the window is an overlay on Max's viewport (MaxBrowserApp), so only the
+   text shows, as Fusion's browser over its canvas. A soft black halo keeps it legible
+   over geometry. */
+html, body { display:flex; flex-direction:column; height:100%; margin:0; background:transparent; }
+.name { text-shadow:var(--name-halo); }
+
+#tree { flex:1; overflow-y:auto; padding:0 0 40px; outline:none; }   /* Fusion's: the window starts under the menu bar */
+#waiting { color:var(--text-faint); font-size:12px; padding:20px; text-align:center; }
+
+.row { display:flex; align-items:center; min-height:var(--row-h); padding:0 10px 0 4px;
+       cursor:default; white-space:nowrap; -webkit-user-select:none; user-select:none; }
+.row.cursor { background:color-mix(in srgb, var(--sel-adj) 82%, transparent); }
+.row.sel:not(.cursor) { background:color-mix(in srgb, var(--sel-adj) 45%, transparent); }
+.name { font-size:13px; color:var(--text-bright); overflow:hidden; text-overflow:ellipsis;
+        flex:0 1 auto; min-width:0; }
+
+/* Containers bold, like Fusion's components and folders. */
+.row[data-kind="folder"] .name, .row[data-kind="group"] .name, .row[data-kind="def"] .name,
+.row[data-kind="body"] .name, .row[data-kind="shape"] .name, .row[data-kind="aux"] .name,
+.row[data-kind="other"] .name { font-weight:700; }
+/* Kind colours. An object holds its own settings (its modifier stack), so it reads as a
+   Fusion component: white, like folders — objects and instance definitions alike.
+   The stack is the Operations group's indigo (a modifier, and the base object below it,
+   dimmer); the Instances group and its numbered instances are the Bodies group's amber. */
+.row[data-kind="mod"], .row[data-kind="base"] { --k:var(--k-body); }
+.row[data-kind="inst"], .row[data-kind="instance"] { --k:var(--k-bodies); }
+/* A Max group (selects as one; Go In to pick its parts) is amber too, like Fusion's
+   bodies — a folder is a component and stays white. */
+.row[data-kind="group"] { --k:var(--k-bodies); }
+.row[data-kind="mod"] .name, .row[data-kind="inst"] .name, .row[data-kind="instance"] .name,
+.row[data-kind="group"] .name { color:var(--k); }
+.row[data-kind="instance"] .name { font-size:12px; }
+.row[data-kind="base"] .name { color:var(--k); opacity:.7; }
+/* Hidden in the viewport → struck through (1.5px through bold); a switched-off
+   modifier → dimmed, as a suppressed feature is. */
+.row.hidden .name { text-decoration:line-through; text-decoration-thickness:1px; }
+.row.hidden[data-kind="folder"] .name, .row.hidden[data-kind="group"] .name { text-decoration-thickness:1.5px; }
+/* Inside something hidden as a whole (a hidden folder, an Instances group with every
+   instance hidden) → dimmed, not struck: Fusion's .groupdim (half darker, same hue). */
+.row.dim .name { color:color-mix(in hsl, var(--k, var(--text-bright)) 50%, black 50%);
+                 text-shadow:var(--name-halo-dim); }
+.row.frozen .name { opacity:.55; }
+.row.off .name, .row[data-kind="base"] .name { text-shadow:var(--name-halo-dim); }
+.row.off .name { color:color-mix(in hsl, var(--k) 50%, black 50%); }
+
+.row input.rename { font:inherit; font-size:13px; color:var(--text-bright); background:var(--focus-bg);
+                    border:1px solid var(--border2); border-radius:3px; padding:1px 4px; width:100%; }
+/* A settings panel in the tree's place (callis/panel.py): the same rows, type and halo.
+   Title (Show Parent only) and section heads = folder rows (bold white, a click opens /
+   shuts, picks draw .sel); a setting = label left, value right, one level in; an open
+   drop-down's choices one more. No arrows: a click on a drop-down opens it. Indents inline. */
+.row.ptitle .name, .row.psec .name { font-weight:700; }
+.row.prow { gap:12px; }
+.row.prow .plabel { flex:1 1 auto; color:var(--text); }
+.row.prow.cursor .plabel, .row.prow.open .plabel { color:var(--text-bright); }
+.row.prow .pval { flex:0 0 auto; font-weight:700; }
+.row.prow .pval.offval { color:var(--text-dim); font-weight:400; }
+.row.prow input.pinput { width:96px; flex:0 0 96px; text-align:right; }
+
+/* Appearances (callis/appearance.py): above the tree, its own scroll, the same rows. A
+   library / group reads as a component (bold white); a material = swatch + name; a model
+   material names its libraries after it, dim; one no object wears is dimmed. The cursor
+   row lights only while the section has the keys (else a faint mark). */
+#appear { flex:0 1 auto; max-height:45%; overflow-y:auto; outline:none; }
+#appear .asep { height:1px; margin:6px 10px; background:var(--text-faint); opacity:.6; }
+.row.arow { gap:7px; }
+.row.arow[data-kind="agroup"] .name, .row.arow[data-kind="amodel"] .name { font-weight:700; }
+.row.arow .sw { width:18px; height:18px; flex:0 0 18px; border-radius:50%; object-fit:cover;
+                box-shadow:0 0 0 1px rgba(0,0,0,.6); }
+.row.arow .sw.none { background:var(--text-faint); }
+.row.arow .libs { font-size:11px; color:var(--text-dim); text-shadow:var(--name-halo); overflow:hidden;
+                  text-overflow:ellipsis; flex:0 1 auto; min-width:0; }
+.row.arow.unused .name { color:var(--text); }
+.row.arow.acur { background:color-mix(in srgb, var(--sel-adj) 30%, transparent); }
+.facetitem.head { color:var(--text-dim); font-size:11px; cursor:default; padding-top:2px; }
+.facetitem.head:hover { background:none; }
+
+/* The right-click menu is solid (the tree stays see-through), Fusion's Browser's size
+   (fusion_browser/index.css #ctx / .ctx-item). */
+#ctx, #pdrop { position:fixed; min-width:170px; padding:4px 0; background:var(--bg);
+       border:1px solid var(--border2); border-radius:var(--radius); box-shadow:0 4px 14px rgba(0,0,0,.6); }
+#ctx .facetitem, #pdrop .facetitem { font-size:12px; padding:5px 14px; white-space:nowrap; }
+/* a setting's drop-down: its choices under the value, the current one lit (R/C walk it) */
+#pdrop { min-width:120px; max-height:60vh; overflow-y:auto; }
+#pdrop .facetitem.cur { background:color-mix(in srgb, var(--sel-adj) 82%, transparent); }
+#ctx .facetitem.check { padding-left:8px; }
+#ctx .menusep { margin:4px 0; }
+/* the menu's view ticks (Targets / Helpers / Splines), fusion_browser's .ctx-item.check */
+.facetitem.check { display:flex; align-items:center; gap:8px; padding-left:8px; }
+.facetitem.check .tick { width:12px; flex:0 0 12px; text-align:center; color:var(--accent, #4a9eff); }
+.facetitem.check:not(.on) .tick { visibility:hidden; }
+
+/* Cut (⌘X) rows fade until pasted, as in fusion_browser. A drag highlights the folder it
+   would drop into; dropping on blank space goes to the entered folder. */
+.row.cut .name { opacity:.4; }
+.row.droptarget { background:color-mix(in srgb, var(--sel-adj) 70%, transparent); outline:1px solid var(--text-dim); outline-offset:-1px; }
+body.dragging, body.dragging .row { cursor:grabbing; }

@@ -1,0 +1,763 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   Fusion UI — shared design system.
+
+   Universal rules for ALL Fusion companion windows (Parameters, Browser, and any
+   future ones): colour palette, typography, list metrics (row height, separator
+   lines, twirl/arrow size+colour), scrollbar.  Each window's own HTML links this
+   file and adds only the rules specific to it.
+
+   Served by each window's local server at /theme.css (read from disk every
+   request), so editing this file and reloading any window updates them all.
+   App-specific values that happen to live here (e.g. --name-col) are harmless to
+   windows that don't use them.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* Kind colours — body indigo, sketch yellow-green, param red, origin purpley-pink.
+   The Browser colours its rows by them, the timeline its features. --k-bodies (amber)
+   is the Browser's Bodies group, its bodies and its folders — between param and
+   sketch in hue but well clear of both. */
+:root { --k-body:#8479ff; --k-sketch:#8fcc00; --k-param:#f98a3c; --k-origin:#ff4fa3;
+        --k-bodies:#ffbf1f; }
+
+/* Kind colours — body indigo, sketch yellow-green, param red, origin purpley-pink.
+   The Browser colours its rows by them and the timeline its features. */
+:root { --k-body:#8479ff; --k-sketch:#8fcc00; --k-param:#f98a3c; --k-origin:#ff4fa3;
+        --k-bodies:#ffbf1f; }
+
+/* Hand-given colours (the list kit's Color ▸ menu) — Finder's tag set, lifted for
+   black. Control Room's light palettes redefine them (remap/index.css). */
+:root { --tag-red:#ff6b62; --tag-orange:#ffa040; --tag-yellow:#f5d44a; --tag-green:#5fd27a;
+        --tag-blue:#5aa8ff; --tag-purple:#c48cf0; --tag-gray:#9a9aa0; --tag-pink:#d46af0; }
+
+:root {
+  /* Browser row names (Fusion + Max): a black halo so they read over geometry. */
+  --name-halo: 0 0 3px #000, 0 0 2px #000, 0 0 1px #000;
+  /* …and a lighter one for dimmed (near-black) names, where a full halo just merges with the text. */
+  --name-halo-dim: 0 0 2px rgba(0,0,0,.45);
+  /* The page follows the SYSTEM appearance, and both appearances are black. What
+     changes is how far the greys sit off the black: the values in this block are the
+     dim fallback; the lifted palette (further down) overrides them for BOTH Light and
+     Dark — see that block. Two extras follow it, Extra Dark and Extra Light: greys go
+     white, #999 or black. */
+  color-scheme: light dark;
+  /* Colour palette */
+  --bg:        #000000;
+  --surface:   #0b0b0b;
+  --group-hdr: #0e0e0e;
+  --border:    #1b1b1b;   /* the grey separator line between list items */
+  --border2:   #292929;
+  /* The outline of a floating panel that sits OVER the viewport — the value box, the
+     New Component panel, Control Room. A solid dark grey — 25% white, 75% black —
+     at full opacity: an alpha grey over the near-black panel all but vanished. One
+     value for light and dark. Shared, so every future floating window reads as the
+     same object. */
+  --panel-edge: #404040;
+  /* ── A floating dialog's fills ──
+     ONE FILL, AND WHISPERS OVER IT. The panel paints its black once, and
+     everything lighter inside it — a header strip, the field being typed in, a chosen
+     chip — is white at a few percent ON TOP of that one fill. Alpha does compound, but
+     .80 under a 9% tint is .818, which is not a difference you can see: the whole panel
+     transmits at one rate.
+
+     The two ways of getting this wrong have both been tried, so don't:
+       - Tints at the strength of the old flat greys (17% for a chosen chip) read as
+         solid patches in a see-through panel. Keep them under 10%.
+       - Making the ROWS paint instead, one layer each, so nothing stacks at all: the
+         arithmetic is perfect and the result is worse, because anything no row happens
+         to cover — a wrapper's padding, a panel taller than its rows — becomes a hole
+         at zero alpha next to neighbours at .80. A single fill cannot have holes.
+
+     THE ALPHA IS THE ONE NUMBER TO TUNE, and only the first line has it. It is 1 now —
+     these are dialogs, and a dialog you can read the model through is a dialog you are
+     reading two things in at once. (The history, if it is ever wanted back: .90 was
+     invisible, because Fusion's canvas is near-black and a tenth of near-black is a
+     tenth of nothing; .80 was the setting that actually read as translucent; below
+     about .7 the text starts to struggle over bright geometry.) */
+  --panel-bg:     #000000;                /* THE fill. Everything below sits on it. */
+  --panel-hdr:    rgba(255,255,255,.03);  /* header strip / error footer */
+  --panel-hover:  rgba(255,255,255,.04);  /* hovered row or chip */
+  --panel-focus:  rgba(255,255,255,.06);  /* the field being typed in */
+  --panel-sel:    rgba(255,255,255,.09);  /* the chosen one */
+  --panel-accent: rgba(91,151,207,.12);   /* what the rule chose — colour, not lightness */
+  --panel-sep:    1px solid rgba(255,255,255,.07);   /* a separator is a fill too */
+  --text:      #9a9a9a;
+  --text-dim:  #6a6a6a;
+  --text-faint:#3a3a3a;
+  --text-bright:#d8d8d8;  /* active/emphasised item text */
+  --accent:    #5b97cf;
+
+  /* The kinds of thing an expression is made of, each its own colour so the shape of
+     what you have typed reads at a glance. DESATURATED on purpose: an expression is
+     five or six items, and five or six saturated colours would be a toy. These are all
+     within a step or two of the grey they would otherwise be — enough to tell a
+     parameter from a constant without the box turning into a paint chart. */
+  --chip-param:   #d2d2d2;   /* the document's own — the brightest, because it is yours */
+  --chip-fn:      #7ea9cc;   /* Fusion's functions: the accent, softened */
+  --chip-const:   #a496c4;   /* Fusion's constants: a lilac step off that accent */
+  --chip-num:     #7fc4a2;   /* a plain number: its own kind of thing, not a name */
+  --chip-numparam:#d8c26a;   /* a typed number that is a parameter underneath (Number Params) */
+  --chip-op:      #bda17d;   /* what joins them: warm, so it never reads as a name */
+  --chip-bracket: #7c7c7c;   /* structure rather than content: the quietest thing here */
+  --chip-name:    #c98fa5;   /* a parameter's own name word (the naming stepper's crumb) */
+  /* Their fills (the rules under "Chips" below), as tokens so Extra Dark can lift them. */
+  --chipfill-param:   rgba(255,255,255,.20);
+  --chipfill-inner:   rgba(255,255,255,.22);   /* a chip inside a call */
+  --chipfill-num:     rgba(127,196,162,.26);
+  --chipfill-numparam:rgba(216,194,106,.26);
+  --chipfill-const:   rgba(164,150,196,.30);
+  --chipfill-op:      rgba(189,161,125,.24);
+  --chipfill-bracket: rgba(124,124,124,.18);
+  --chipfill-fn:      rgba(91,151,207,.28);
+  --chipfill-name:    rgba(201,143,165,.28);
+
+  /* A BUBBLE IS A CHIP ONE SIZE UP, so it is a fill — one pink, deepening a step per
+     nesting level so a bubble inside a bubble still reads against the one around it.
+     ONE flat colour, edge to edge: no rim, and each level laid over --panel-bg rather
+     than over the bubble around it, so nothing stacks (see .chip-group). It sits BEHIND
+     its chips, and the chips on it are opaque, so the pink shows only in the gaps. */
+  --bubble-1: rgba(214,112,156,.27);
+  --bubble-2: rgba(214,112,156,.34);
+  --bubble-3: rgba(214,112,156,.41);
+  --bubble-4: rgba(214,112,156,.48);
+
+  /* THE ONE MARK THAT MEANS "HELD" — round a chip and round a bubble alike (.chip.sel).
+     A true blue rather than the softened --accent: the ring is the only thing saying
+     which object you have hold of, and everything it is drawn against is either a
+     desaturated chip colour or a grey, so it has to be the most definite colour here.
+     One width for both, because a chip and a bubble are the same kind of held. */
+  --chip-ring:   #2f6fd0;
+  --chip-ring-w: 2px;
+
+  /* The command-search palette's environment dot (fusion_value/index.js, "Command
+     search"): SOLID / SHEET METAL / SURFACE each have their own same-named command
+     (three "Extrude"s, etc.), so this is the only thing telling them apart. Same
+     desaturated treatment as the --chip-* set above, and deliberately its own trio
+     rather than reused chip colours — a row here is never shown next to a chip. */
+  --env-solid:      #8f96a3;
+  --env-sheetmetal: #c2965f;
+  --env-surface:    #63b3ad;
+
+  /* A feature's OPERATION (fusion_value/index.js opMark — the Extrude, Mirror and
+     feature panels): the selected button wears it, and Extrude's cut/intersect preview
+     ghost uses the same hue (AddIns/Extrude/Extrude.py _GHOST_COLOURS). */
+  --op-cut:       #d63c3c;
+  --op-intersect: #e0a030;
+  --op-join:      #5fb86a;
+  --op-newbody:   #4f8fe0;
+  --accent-dim:#1f344a;
+  --err:       #b56565;
+  --row-hover: #0f0f0f;
+  --hover-lift: rgba(255,255,255,.035);   /* the pointer on a marked row (list.css) */
+  --row-cur:   var(--row-hover);   /* the keyboard cursor's shade (list.css) */
+  --sel:       #2b2b2b;   /* selected-row shading */
+  --drop:      #5b97cf;   /* subtle drop-into fill tint (the light accent blue) */
+  --drop-line: #1f74d4;   /* insertion line between items — darker, more saturated */
+  --focus-bg:  #181818;
+  --scroll-thumb: #2c2c2c;
+  --scroll-thumb-hover: #3a3a3a;
+
+  /* List metrics (shared so a change propagates to every window) */
+  --row-h:     30px;             /* list item height */
+  --sep:       1px solid var(--border);  /* separator line between items */
+  --twirl-size:15px;             /* collapse/expand arrow glyph size */
+  --twirl-box: 24px;             /* arrow hit-box */
+  --indent:    13px;             /* per-nesting-level indent */
+  --radius:    4px;
+  --radius-sm: 3px;
+
+  /* Type. One family, one monospace, and a short scale — a size that is not on it
+     is a size nobody chose. */
+  --font:      -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --fs-title:  16px;   /* a window's own title */
+  --fs-body:   13px;   /* running text, a page heading */
+  --fs-ui:     12.5px; /* a row's name, a field, a button */
+  --fs-small:  12px;   /* a row's right-hand column, a menu button */
+  --fs-meta:   11.5px; /* chips, labels, messages */
+  --fs-tiny:   11px;   /* hints, section labels */
+
+  /* Spacing and control heights (the list kit, fusion_ui/list.css, and the
+     Control Room). --gutter is the left/right inset every row, heading and card
+     shares, which is what lines a page up. */
+  --gutter:    16px;
+  --nest:      17px;   /* one level of a nested group, in the list kit */
+  --ctl-h:     24px;   /* menu buttons */
+  --ctl-h-sm:  20px;   /* chips, small fields */
+  --field-h:   26px;   /* text fields and selects */
+  --btn-h:     27px;   /* buttons */
+
+  /* Floating-dialog metrics. --panel-gutter is the transparent margin held around a
+     dialog INSIDE its own window so the drop shadow has somewhere to fall: these
+     windows are borderless and sized to their panel, so a panel drawn flush to the
+     window edge had its shadow clipped square down the left and right sides. The host
+     window grows by this much on each side and places the panel, not the window — see
+     FusionValueApp/main.swift, which must agree with the number below. */
+  --panel-radius: 9px;
+  --panel-shadow: 0 6px 24px rgba(0,0,0,.7);
+  --panel-gutter: 26px;
+  /* A dialog header is a DRAG HANDLE before it is anything else — on these panels every
+     other strip is a text field or a list row and swallows the press, so this is the
+     only place there is to take hold of. Sized like a field rather than like a caption,
+     so there is a comfortable target whether or not it carries any text. */
+  --hdr-h:     34px;
+
+  /* App-specific (ignored where unused) */
+  --name-col:  150px;
+}
+
+/* ── The lifted palette: the same black, the greys lifted ────────────────────
+   Both appearances are black because the windows sit over Fusion's black viewport,
+   and a white panel there would be a lamp. So "dark mode" here means the thing dark
+   mode is FOR at night: the screen's brightness is turned down globally (to tame the
+   apps that insist on white text) and macOS "Increase contrast" is on (to turn dark
+   grey app chrome black) — under both of which the greys above sink into the black.
+   This block is the same design pushed a step or two up so it still reads in that
+   setting. Every token that carries a grey is redefined; the metrics are not.
+
+   IT APPLIES IN LIGHT TOO. Light used to keep the dimmer values above (text #9a9a9a),
+   which read as light grey on the black panel; now Light and Dark share this palette
+   and only the extras (next) are their own. So it is NOT inside a media query — the
+   values above are only the fallback for a page that loads no other rule. The one
+   window with a real light palette, Control Room, redefines what it needs in its own
+   `prefers-color-scheme: light` block (remap/index.css), which loads after this.
+   The Swift shells no longer pin .darkAqua, which is what lets the media queries
+   follow the system (see remap/RemapApp/main.swift for the reasoning). */
+:root {
+  --surface:   #101010;
+  --group-hdr: #1c1c1c;
+  --border:    #2a2a2a;
+  --border2:   #3a3a3a;
+  --panel-hdr:    rgba(255,255,255,.05);
+  --panel-hover:  rgba(255,255,255,.07);
+  --panel-focus:  rgba(255,255,255,.09);
+  --panel-sel:    rgba(255,255,255,.14);
+  --panel-accent: rgba(122,176,224,.18);
+  --panel-sep:    1px solid rgba(255,255,255,.11);
+  --text:      #c4c4c4;
+  --text-dim:  #8e8e8e;
+  --text-faint:#555555;
+  --text-bright:#f0f0f0;
+  --accent:    #7ab0e0;
+  --chip-param:   #ececec;
+  --chip-fn:      #9cc2df;
+  --chip-const:   #bfb2d8;
+  --chip-num:     #9ad7b9;
+  --chip-numparam:#e6d48a;
+  --chip-op:      #d3ba98;
+  --chip-bracket: #9a9a9a;
+  --chip-name:    #dcaabc;
+  /* The bubble fill and the held ring, lifted with the rest: the same pink, a shade
+     brighter, so it still reads beside the lighter chips above. */
+  --bubble-1: rgba(226,128,170,.29);
+  --bubble-2: rgba(226,128,170,.36);
+  --bubble-3: rgba(226,128,170,.43);
+  --bubble-4: rgba(226,128,170,.50);
+  --chip-ring:   #3d82e0;
+  --env-solid:      #aab2c0;
+  --env-sheetmetal: #d7ab7c;
+  --env-surface:    #7fcac4;
+  --op-cut:       #ec4c4c;
+  --op-intersect: #f0b84a;
+  --op-join:      #7ccc86;
+  --op-newbody:   #6aa6ee;
+  --accent-dim:#2a4560;
+  --err:       #cf7a7a;
+  --row-hover: #161616;
+  --sel:       #3a3a3a;
+  --focus-bg:  #222222;
+  --scroll-thumb: #444444;
+  --scroll-thumb-hover: #555555;
+}
+
+/* ── Extra Dark / Extra Light: two greys, and the colours lifted ─────────────
+   The extra appearances. Extra Dark is for the brightness turned right down — where
+   even the dark palette's greys vanish; Extra Light is the same push made in Light.
+   Each is macOS's own appearance plus fusion_ui/extra.json, which appearance.js
+   mirrors onto <html data-xdark> or <html data-xlight> (the Light → Dark → Extra
+   Dark → Extra Light cycle is contrast_theme/toggle_appearance.sh).
+
+   These windows are black in Light as well as Dark, so both extras are this ONE
+   palette here. The exception is a page with its own white Light palette —
+   Control Room, marked <html data-light-palette> — which gets its Extra Light from
+   its own stylesheet (remap/index.css) and must not get these dark values.
+
+   THE RULE: every grey is one of three things. Anything that was light or light grey
+   is WHITE. Anything meant to sit back — secondary text, hidden items, borders — is
+   #999, a little under halfway to white, because at that brightness anything darker is gone. Anything
+   that was a dark grey FILL — group headers, surfaces, hover — is BLACK. The lines
+   between items are not drawn at all (transparent, still 1px, so nothing moves).
+   Selection keeps a white tint, a notch stronger, so the chosen row still shows. Colours go most of the way to pastel, and chip FILLS get stronger
+   — but stay dark enough that the pastel letters on them still read. */
+:root[data-xdark],
+:root[data-xlight]:not([data-light-palette]) {
+  --panel-edge:   #999999;
+  --border:       transparent;   /* no lines between items */
+  --sep:          1px solid transparent;   /* kept 1px so rows don't move */
+  --border2:      #999999;
+  --panel-hdr:    transparent;
+  --panel-hover:  rgba(255,255,255,.09);
+  --panel-focus:  rgba(255,255,255,.11);
+  --panel-sel:    rgba(255,255,255,.18);
+  --panel-accent: rgba(168,205,240,.22);
+  --panel-sep:    1px solid transparent;
+  --text:       #ffffff;
+  --text-bright:#ffffff;
+  --text-dim:   #999999;
+  --text-faint: #999999;
+  --accent:     #a8cdf0;
+  --chip-param:   #ffffff;
+  --chip-fn:      #d2e5f5;
+  --chip-const:   #e7e0f5;
+  --chip-num:     #d0f5e2;
+  --chip-numparam:#f5ecc4;
+  --chip-op:      #f3e3cc;
+  --chip-bracket: #ffffff;
+  --chip-name:    #f5d8e3;
+  --chipfill-param:   rgba(255,255,255,.34);
+  --chipfill-inner:   rgba(255,255,255,.37);
+  --chipfill-num:     rgba(154,215,185,.40);
+  --chipfill-numparam:rgba(230,212,138,.40);
+  --chipfill-const:   rgba(191,178,216,.42);
+  --chipfill-op:      rgba(211,186,152,.38);
+  --chipfill-bracket: rgba(170,170,170,.30);
+  --chipfill-fn:      rgba(122,176,224,.42);
+  --chipfill-name:    rgba(220,170,188,.40);
+  --env-solid:      #d0d6e0;
+  --env-sheetmetal: #f0c898;
+  --env-surface:    #a8e6e0;
+  --op-cut:       #ff8f85;
+  --op-intersect: #ffd27a;
+  --op-join:      #a8e6b0;
+  --op-newbody:   #a0c8ff;
+  --accent-dim: #34587c;
+  --err:        #f0a0a0;
+  --row-hover:  #000000;
+  /* The keyboard cursor can't be the hover shade here: hover is black, so a black
+     cursor on a black list vanished and every nav key looked dead. A white tint,
+     one notch under the selection's. */
+  --row-cur:    rgba(255,255,255,.13);
+  --surface:    #000000;
+  --group-hdr:  #000000;
+  --focus-bg:   #000000;
+  --drop:       #8ec0ec;
+  --drop-line:  #5aa2f0;
+  --scroll-thumb:       #999999;
+  --scroll-thumb-hover: #999999;
+  /* The bubble fill and the held ring are tokens now (see the first :root block), so
+     Extra Dark lifts them the same way it lifts every other colour here rather than
+     restating the rules. Brighter and more opaque, like the chip fills above. */
+  --bubble-1: rgba(240,150,190,.32);
+  --bubble-2: rgba(240,150,190,.39);
+  --bubble-3: rgba(240,150,190,.46);
+  --bubble-4: rgba(240,150,190,.53);
+  --chip-ring: #5aa2f0;
+}
+
+/* The page canvas is TRANSPARENT: the host window paints the (translucent) black
+   behind it, so what sits behind the dock shows through. --bg stays opaque for the
+   elements that need to cover what scrolls under them (sticky group headers, inputs). */
+html, body {
+  height: 100%;
+  background: transparent;
+  color: var(--text);
+  font: var(--fs-body)/1.4 var(--font);
+  user-select: none; -webkit-user-select: none;
+}
+
+::selection       { background: #2f63ad; color: var(--text); }
+input::selection  { background: #2f63ad; color: var(--text); }
+
+/* Shared collapse/expand arrow (twirl). Glyph is ▾, rotated -90° when collapsed. */
+.twirl {
+  width: var(--twirl-box); height: var(--twirl-box);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; cursor: pointer; user-select: none;
+  font-size: var(--twirl-size); color: var(--text-dim);
+  transition: transform .12s;
+}
+.twirl:hover { background: rgba(255,255,255,.05); color: var(--text); }
+.twirl.collapsed { transform: rotate(-90deg); }
+.twirl.leaf { visibility: hidden; }
+
+/* Scrollbar — hidden but functional (trackpad scrolling still works). */
+.fscroll::-webkit-scrollbar { width: 0; }
+.fscroll::-webkit-scrollbar-track { background: var(--bg); }
+.fscroll::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb); border-radius: 6px;
+  border: 3px solid var(--bg); background-clip: padding-box;
+}
+.fscroll::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hover); background-clip: padding-box; }
+.fscroll::-webkit-scrollbar-corner { background: var(--bg); }
+
+
+/* ── A floating dialog ────────────────────────────────────────────────────────
+   The value box, the New Component panel, the Extrude panel — and whatever comes next.
+   One class, so a new dialog is the same object as the existing ones without copying
+   five declarations, and so a change to how they all look is a change here.
+
+   The margin is not spacing: it is the room the box-shadow needs. See --panel-gutter. */
+.fpanel {
+  /* A positioning context, so anything hung on the panel's own edges — the width grip
+     on the right of the value dialog, and whatever comes next — measures from the
+     PANEL rather than from the window, which is wider than it by a gutter on each
+     side. Nothing else here is absolutely positioned against an outer box: the
+     suggestion list is a sibling of the panels, not a child. */
+  position: relative;
+  background: var(--panel-bg);
+  /* No border of its own: the outline is ::after below, and ONLY there. A real border
+     under overflow:hidden clipped the children to the smaller inner radius and left the
+     corners looking cut; one line on top, same radius as the panel, can't do that. */
+  /* Its own radius rather than --radius (4px, meant for list rows): this is a floating
+     panel over the viewport and reads as one at a larger corner. The window behind it is
+     transparent and borderless, so this IS the window's outline. */
+  border-radius: var(--panel-radius);
+  box-shadow: var(--panel-shadow);
+  margin: var(--panel-gutter);
+  overflow: hidden;
+}
+/* The outline. On a positioned pseudo-element rather than a border because a border
+   draws BEHIND the panel's own content, so a suggestion list or any other overlay
+   that lands on the edge (#ac/#pick share .fpanel's exact horizontal span — see the
+   comment above) painted over it. The z-index clears every overlay in every window
+   that uses .fpanel, so the outline always reads as the window's edge. inset:0 keeps
+   it inside the overflow clip; 1px, not 2 — the M1's 2x backing draws it crisp.
+   ONE ANTIALIAS AT THE CORNERS, NOT TWO. A 1px line at inset:0 has its outer edge on
+   the exact curve the panel's overflow clip cuts along, so at the rounded corners the
+   line's own antialiasing and the clip's multiply — the corners came out paler than
+   the straight runs. So the line is drawn 2px wide from 1px OUTSIDE the panel (radius
+   +1 to keep it concentric) and the clip trims it back to 1px: the outer edge is then
+   the clip alone, the same single edge the straight runs get. */
+.fpanel::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border: 2px solid var(--panel-edge);
+  border-radius: calc(var(--panel-radius) + 1px);
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* ── Busy: it registered, the answer is on its way ────────────────────────────
+   A panel that has sent something and is waiting for Fusion (a commit that has to
+   build, a load) stays up — an error has to be able to come back into it — but DIMS,
+   so the key or click reads as taken rather than missed. The page sets `busy` on
+   <body> for as long as it waits and lifts it on the answer (an error included).
+   Everything in the panel dims and stops taking clicks; the frame and outline stay,
+   so it is still plainly the same dialog. Keys still reach the page — Esc must cancel. */
+body.busy .fpanel { cursor: progress; }
+body.busy .fpanel > * { opacity: .4; pointer-events: none; transition: opacity .08s; }
+
+
+/* ── Chips: an expression typed as items ──────────────────────────────────────
+   The look half of fusion_ui/chips.js. Shared for the same reason everything else
+   here is: a parameter inside an expression should read the same in whichever
+   window it is being typed into.
+
+   THE ONE RULE. A chip may not occupy any space of its own. The field underneath
+   the paint is a real <textarea> holding the same characters, and the caret is its
+   caret — so the moment a chip is a pixel wider than its letters, what you see and
+   where the caret goes come apart. Everything below therefore paints OUTSIDE the
+   inline box: a background, a radius, and a box-shadow spread that fakes the
+   padding a pill would want. No padding, no border, no margin, no font-size and no
+   font-weight: bold letters are wider letters. */
+
+.chipbox { position: relative; }
+
+/* The field itself: its text goes invisible and only its caret remains, because
+   the glyphs you read are the layer's. caret-color is what makes that possible —
+   without it a transparent field is a box you cannot see yourself typing in. */
+.chipbox > .chipped {
+  position: relative; z-index: 1;
+  color: transparent;
+  caret-color: var(--text-bright);
+  background: transparent;
+  /* A pointer, not an I-beam. What is in here is mostly objects, and an I-beam over an
+     object is an offer to select through it that this field does not mean. chips.js
+     puts the I-beam back, per pixel, wherever there IS text to work on. */
+  cursor: default;
+  /* THE GAP BETWEEN CHIPS. A chip paints 4px outside its letters (see .chip), so a
+     single space — three and a half pixels of it — leaves two chips overlapping rather
+     than merely close, and a row of items reads as one bar. Widening the SPACE is the
+     only way to open that gap without breaking the rule above: word-spacing applies to
+     the field and to the layer alike, so the two stay character for character on top of
+     each other, which padding on a chip could never do. Wide enough that a caret drawn
+     in the middle of the gap (chips.js placeCaret) clears both fills. */
+  word-spacing: 12px;
+}
+/* The gap is between CHIPS; an empty field's placeholder ("Other side") is plain words. */
+.chipbox > .chipped::placeholder { word-spacing: normal; }
+/* Beside a chip the field's own caret would sit inside the chip's fill, so chips.js
+   hides it and draws .chip-caret a little way off the chip instead (placeCaret). */
+.chipbox > .chipped.owncaret { caret-color: transparent; }
+.chip-caret {
+  position: absolute; z-index: 2; width: 1px;
+  background: var(--text-bright);
+  pointer-events: none;
+}
+.chip-caret.blink { animation: chip-caret-blink 1.06s step-end infinite; }
+@keyframes chip-caret-blink { 50% { opacity: 0; } }
+/* The selection paints in the field, over the layer — but only when it is TEXT that is
+   selected. Lighter than the global ::selection, which is sized for text it can also
+   colour; here it is a wash over glyphs it does not own. */
+.chipbox > .chipped::selection { background: rgba(47,99,173,.45); }
+/* HOLDING a chip is not selecting text, so it must not look like it. chips.js sets this
+   class while the selection is exactly one item, and the ring on .chip.sel says which —
+   an object with a line round it, rather than a run of characters gone blue. */
+.chipbox > .chipped.holding::selection {
+  background: transparent;
+  /* AND the letters too. The field's text is transparent everywhere (above) so that
+     what you read is the layer — but WebKit paints SELECTED text in the selection's own
+     foreground colour regardless, which drew the field's own glyphs in white on top of
+     the layer's coloured ones the moment a chip was taken hold of. That is what made a
+     held chip look like a different chip: its contents were being repainted by the
+     selection, not by anything in the .sel rules. */
+  color: transparent;
+}
+/* Several chips taken hold of leave a collapsed selection at the last one, and a
+   blinking caret there would say typing lands in the box. It does not (chips.js,
+   "Selecting"), so the caret is hidden while they are held. */
+.chipbox > .chipped.multiholding { caret-color: transparent; }
+
+/* The paint. Same box, same metrics — chips.js copies the field's font, padding and
+   border widths onto it at attach time, so nothing here may set them. */
+.chip-layer {
+  position: absolute; inset: 0; z-index: 0;
+  overflow: hidden;
+  color: var(--text);
+  pointer-events: none;
+  user-select: none; -webkit-user-select: none;
+}
+
+/* An item. The shadow spread is the padding: it paints 4px of the same fill around
+   the letters without the letters moving. Deliberately not subtle — a chip is an
+   object, and an object with a fill you have to look for is just coloured text. */
+.chip {
+  --cf: var(--chipfill-param);  /* its fill, for .chip-group below */
+  border-radius: 4px;
+  background: var(--chipfill-param);
+  box-shadow: 0 0 0 4px var(--chipfill-param);
+  color: var(--chip-param);
+}
+/* A number. Its own colour and its own fill, because a value typed in is a different
+   kind of thing from a name pointed at — and the unit belongs to it, so "25 mm" is
+   one pill rather than a number with a word after it. */
+.chip-num {
+  --cf: var(--chipfill-num);  /* its fill, for .chip-group below */
+  color: var(--chip-num);
+  background: var(--chipfill-num);
+  box-shadow: 0 0 0 4px var(--chipfill-num);
+}
+/* A NUMBER PARAMETER (Number Params.py): typed as a number and read as one, but a
+   parameter underneath — what the references and tethers built from it follow. Its own
+   colour, so it is never mistaken for a plain number that nothing can follow. */
+.chip-numparam {
+  --cf: var(--chipfill-numparam);
+  color: var(--chip-numparam);
+  background: var(--chipfill-numparam);
+  box-shadow: 0 0 0 4px var(--chipfill-numparam);
+}
+/* A constant is Fusion's word rather than the document's, and reads as its own kind of
+   thing for the same reason a parameter does — you cannot spell it differently and
+   still mean it. */
+.chip-const {
+  --cf: var(--chipfill-const);  /* its fill, for .chip-group below */
+  color: var(--chip-const);
+  background: var(--chipfill-const);
+  box-shadow: 0 0 0 4px var(--chipfill-const);
+}
+.chip-fn > .chip-fn-name { color: var(--chip-fn); background: none; box-shadow: none; }
+
+/* An operator is an item too, but the quietest one that still reads as a chip: there
+   are as many of them as there are things being joined, and giving each the weight of
+   a parameter would leave the line looking like a fence. */
+.chip-op {
+  --cf: var(--chipfill-op);  /* its fill, for .chip-group below */
+  color: var(--chip-op);
+  background: var(--chipfill-op);
+  box-shadow: 0 0 0 4px var(--chipfill-op);
+}
+/* The placeholder "+" standing in for an operator just deleted (chips.js, "An operator
+   taken out"): in the text, so leaving the gap empty still means +, but not drawn —
+   the gap reads as empty, with the caret in it, until something is typed there. */
+.chip-op.chip-ghost { color: transparent; background: none; box-shadow: none; }
+/* A bracket says what goes with what. It is structure rather than content, so its
+   fill is the faintest here — but it still needs one: with none at all a standalone
+   "(" or ")" (there is no space on either side of it, by design) reads as welded to
+   whatever chip it sits against instead of as its own thing next to it. The spread
+   is the same 4px as everywhere else, so the seam is layout-safe. */
+.chip-bracket {
+  --cf: var(--chipfill-bracket);  /* its fill, for .chip-group below */
+  color: var(--chip-bracket);
+  background: var(--chipfill-bracket);
+  box-shadow: 0 0 0 4px var(--chipfill-bracket);
+}
+/* A call is one chip with its argument inside it. The outer fill is quieter than a
+   plain chip's so the argument's own chip still reads as a thing within a thing
+   rather than as one flat block. */
+.chip-fn {
+  --cf: var(--chipfill-fn);  /* its fill, for .chip-group below */
+  background: var(--chipfill-fn);
+  box-shadow: 0 0 0 4px var(--chipfill-fn);
+}
+.chip-fn .chip { --cf: var(--chipfill-inner); background: var(--chipfill-inner);
+                 box-shadow: 0 0 0 4px var(--chipfill-inner); }
+
+/* Held. A RING, AND NOTHING ELSE. Taking hold of a chip says which one you are
+   pointing at; it does not change what the chip IS, so its own fill and its own colour
+   stay exactly as they were and the ring is drawn round the outside of them. (It used
+   to swap the fill for --panel-sel as well, which repainted a number, an operator and a
+   parameter into the same grey the moment you picked one up — and the 4px of flat grey
+   read as a border far thicker than the line actually is.)
+
+   Drawn as an OUTLINE rather than in the box-shadow: like the shadow it paints without
+   occupying any space (THE ONE RULE above), and unlike it, it follows the shape at a
+   fixed offset whatever fill is underneath — which is what lets a chip and a bubble
+   carry the same ring at the same weight. */
+.chip.sel {
+  /* No radius of its own: the outline follows whatever the chip underneath it already
+     has (4px for a chip, more for a bubble), which is what keeps one rule right for
+     both. Setting one here squared the corners of every held bubble. */
+  outline: var(--chip-ring-w) solid var(--chip-ring);
+  outline-offset: 4px;                 /* .chip's own spread: the ring sits just past it */
+}
+
+/* An explicit axis tag, in Fusion's own axis colours — red X, green Y, blue Z, the
+   same three the viewport triad uses. A stripe under the word rather than a badge
+   beside it, because a badge would be a character wide and characters are exactly
+   what a chip cannot add. */
+.chip.tagged[data-axis="X"] { background-image: linear-gradient(to top, rgba(214,96,96,.9) 1.5px, transparent 1.5px); }
+.chip.tagged[data-axis="Y"] { background-image: linear-gradient(to top, rgba(122,181,106,.9) 1.5px, transparent 1.5px); }
+.chip.tagged[data-axis="Z"] { background-image: linear-gradient(to top, rgba(91,151,207,.95) 1.5px, transparent 1.5px); }
+
+/* A parameter read the way the Browser reads it (chips.js opts.label). The real name
+   stays underneath, invisible, holding the chip's width — the layer must match the field
+   letter for letter — and the reading sits over it, fitted by chips.js fitLabels. */
+.chip.labelled { position: relative; }
+.chip.labelled > .chip-raw { color: transparent; }
+.chip-label {
+  position: absolute; left: 0; top: 0;
+  white-space: pre;
+  word-spacing: normal;                /* the field's 12px is the gap BETWEEN chips */
+  transform-origin: left center;
+}
+
+/* Being dragged. Everything else fades back and the item in hand does NOT — it keeps
+   its own fill and its own colour, lifted off the row by a shadow rather than repainted
+   into a different thing. The `.held .chip` line is what keeps a call's argument, or a
+   bubble's contents, from being dimmed inside the very thing that is being carried:
+   they are part of it, not part of the row it is moving through. */
+.chip-layer.dragging .chip { opacity: .55; }
+.chip-layer.dragging .chip.held,
+.chip-layer.dragging .chip.held .chip {
+  opacity: 1;
+}
+.chip-layer.dragging .chip.held {
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,.6));
+}
+
+/* A bubble: a grouping made only of chips.js's own "group" atom, with no visible
+   brackets — see the phase-2 plan's "core mechanism" note.
+
+   IT IS A CHIP, ONE SIZE UP. Same shape, same treatment — a fill and a radius — just
+   bigger, and painted BEHIND its contents, so a bubble reads as the thing the chips
+   inside it are sitting on rather than as a box drawn around them.
+   An outline is what says "selected" here (.chip.sel / .chip-group.sel), and a bubble
+   wearing one at rest had nothing left to say when it actually was.
+
+   The spread GROWS with nesting depth rather than shrinking, so a bubble nested inside
+   another is never the smaller-looking one, and each level's own colour still reads
+   through the one around it. Four depths named; a fifth nesting reuses the fourth's
+   rather than running out.
+
+   IT SITS UNDER EVERY CHIP. Two things used to show it through them: a bubble's
+   spread is a box-shadow, painted in tree order, so it lay OVER any chip that came
+   before it in the row; and the chip fills are translucent, so the bubble tinted every
+   chip sitting on it. So every chip in the layer is lifted one level above a bubble
+   (z-index, which moves nothing — THE ONE RULE), and a chip on a bubble paints its
+   own fill over the panel's black rather than over the pink: --cf is that chip's own
+   fill, laid as an inset shadow over a --panel-bg background, and the spread gets the
+   same black under it as a second shadow. The chip looks exactly as it does off a
+   bubble; the pink shows only in the gaps between. (A call's argument is left alone:
+   it sits on the call's own fill, which is already opaque here.)
+   BLACK IS NOT ALWAYS WHAT IS BEHIND IT. A field being typed in wears a light tint
+   (fusion_value's .field.on), so a chip off a bubble shows through black + tint, and one
+   on a bubble laid over black alone came out darker. The page names that tint as
+   --chip-under (transparent when unset) and it goes into the underlay too — for the
+   bubble as well, so a bubble sits on exactly what the chips beside it do.
+
+   ONE FLAT COLOUR, EDGE TO EDGE. It used to wear a brighter pink rim, and its
+   translucent fill was laid over whatever was behind it — so a bubble inside another
+   stacked the two pinks into a lighter strip down its middle: three colours for one
+   object. No rim now (a blue one would read as the held ring anyway; that ring is what
+   .chip-group.sel adds), and the fill and spread are both laid over --panel-bg, the
+   same way a chip on a bubble is, so every bubble is exactly its own level's pink over
+   black wherever you look at it. --bf is that fill. */
+.chip-layer .chip       { position: relative; z-index: 1; }
+.chip-layer .chip-group { z-index: 0; }
+.chip-group .chip:not(.chip-group):not(.chip-fn-name):not(.chip-fn .chip) {
+  background-color: var(--panel-bg);   /* -color only: an axis tag's stripe stays */
+  box-shadow: inset 0 0 0 100px var(--cf), inset 0 0 0 100px var(--chip-under, transparent),
+              0 0 0 4px var(--cf), 0 0 0 4px var(--chip-under, transparent),
+              0 0 0 4px var(--panel-bg);
+}
+.chip-group {
+  --bf: var(--bubble-1); --bs: 6px;
+  background: var(--panel-bg);
+  box-shadow: inset 0 0 0 100px var(--bf), inset 0 0 0 100px var(--chip-under, transparent),
+              0 0 0 var(--bs) var(--bf), 0 0 0 var(--bs) var(--chip-under, transparent),
+              0 0 0 var(--bs) var(--panel-bg);
+  border-radius: var(--bs);
+}
+.chip-group[data-depth="1"] { --bf: var(--bubble-2); --bs: 8px; }
+.chip-group[data-depth="2"] { --bf: var(--bubble-3); --bs: 10px; }
+.chip-group[data-depth="3"],
+.chip-group[data-depth="4"],
+.chip-group[data-depth="5"] { --bf: var(--bubble-4); --bs: 12px; }
+/* A HELD bubble is one object, and says so exactly the way a held chip does: the same
+   ring, at the same weight, sitting just outside its own (larger) spread. Its fill is
+   untouched — see .chip.sel. Nothing inside it gets a ring of its own (chips.js marks
+   only the outermost — see markHeld). */
+.chip-group.sel                  { outline: var(--chip-ring-w) solid var(--chip-ring);
+                                   outline-offset: 6px; }
+.chip-group[data-depth="1"].sel  { outline-offset: 8px; }
+.chip-group[data-depth="2"].sel  { outline-offset: 10px; }
+.chip-group[data-depth="3"].sel,
+.chip-group[data-depth="4"].sel,
+.chip-group[data-depth="5"].sel  { outline-offset: 12px; }
+/* Inside a bubble (F on a held one), everything outside it steps back. A bubble around
+   the one you are in keeps its letters but loses its fill and outline.
+
+   THAT DIMMING IS THE WHOLE MARK. The bubble you are in used to carry a dashed ring of
+   its own, which put a broken box round everything inside it and read as a text field
+   opened for editing — the one thing being in a bubble is not. Its own fill already
+   says where it stops (see .chip-group), and the row outside it going quiet says
+   which one you are in. */
+.chip-layer.scoped .chip.out { opacity: .3; }
+.chip-layer.scoped .chip.out-anc { background: none; box-shadow: none; outline: 0; }
+/* The bubble's own handles: the real "(" and ")" it was made of (see insertGroup
+   in chips.js), painted transparent because a bubble has no visible brackets —
+   but never removed from the layer, since it has to hold the same characters the
+   field does. Their only visible trace is being their own small click/drag target
+   at each end, per the phase-2 spec's "slight extensions that act as handles". */
+.chip-group-handle { color: transparent; }
+
+/* Multi-selected — Shift-click extends a run toward becoming one bubble (Cmd+G,
+   or Space). EXACTLY the ring .sel draws, on each one of them: holding three chips is
+   holding three chips, and a dashed variant for "several" only ever read as a different,
+   weaker kind of selection. Its own fill is untouched, for the same reason a held
+   chip's is (see .chip.sel). */
+.chip.multi {
+  outline: var(--chip-ring-w) solid var(--chip-ring);
+  outline-offset: 4px;
+}
+/* A BUBBLE in the set wears it at its own spread, the way a held one does — and after
+   .chip.multi rather than beside .chip-group.sel, because the two selectors weigh the
+   same and the last one written is the one that lands. */
+.chip-group.multi                  { outline-offset: 6px; }
+.chip-group[data-depth="1"].multi  { outline-offset: 8px; }
+.chip-group[data-depth="2"].multi  { outline-offset: 10px; }
+.chip-group[data-depth="3"].multi,
+.chip-group[data-depth="4"].multi,
+.chip-group[data-depth="5"].multi  { outline-offset: 12px; }
