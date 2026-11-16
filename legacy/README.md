@@ -1,4 +1,6 @@
-# HighVis
+# HighVis — original version (2017–2021)
+
+> This is the original MAXScript + ExtendScript version. The current version, rebuilt in Python, is at the **[top of this repository](../README.md)**.
 
 **3ds Max and Photoshop automation for architectural visualisation.**
 

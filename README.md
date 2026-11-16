@@ -1,8 +1,8 @@
-# 3ds Max Pipeline
+# HighVis
 
-**A Python rebuild of my architectural-visualisation workflow for 3ds Max: a renderer-agnostic render → Photoshop pipeline, a shot system, and a cleaner, Fusion-style way of modelling.**
+**3ds Max and Photoshop automation for architectural visualisation: a renderer-agnostic render → Photoshop pipeline, a shot system, and a cleaner, Fusion-style way of modelling.**
 
-This is the modern successor to [HighVis](https://github.com/JoshCallis/HighVis), my 2018–2024 MAXScript + ExtendScript toolset. It is rewritten in Python (`pymxs`), tested end to end with **V-Ray 7, Arnold and Corona 15**, and runs 3ds Max 2027 inside a Parallels VM on a Mac, driven from the Mac side over a small socket bridge.
+This is the current version, rewritten in 2026 in Python (`pymxs`). It is tested end to end with **V-Ray 7, Arnold and Corona 15**, and runs 3ds Max 2027 inside a Parallels VM on a Mac, driven from the Mac side over a small socket bridge. The original MAXScript + ExtendScript version (2017–2021) is kept in **[`legacy/`](legacy/README.md)**.
 
 ---
 
@@ -43,7 +43,12 @@ max/
 ├── install/         Max startup stubs
 └── hotkeys/, materials/, maxstart/, scroll/   Config
 max_browser/         The Browser window (Mac app + local server, long-polls Max's state)
+legacy/              The original version (2017–2021): MAXScript macros + Photoshop ExtendScript
 ```
+
+## Previous version
+
+**[`legacy/`](legacy/README.md)** holds the original HighVis, with its full commit history: the MAXScript render pipeline, multimatte masks, the first BetterMove, the asset-library batch tools and the Photoshop grading shortcuts. The current version rebuilds that workflow, replacing per-material multimattes with Cryptomatte, animated cameras with standalone shots, and folder-name settings with JSON manifests.
 
 ## Notes
 
