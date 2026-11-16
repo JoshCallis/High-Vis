@@ -8,7 +8,7 @@ These tools are designed for my own workflow and software environment, and not i
 
 These automations cover the whole visualisation workflow: setting up a scene, modelling and asset prep in 3ds Max, rendering, and building the layered Photoshop file that the final image is graded in.
 
-The centrepiece is a **one-click render-to-Photoshop pipeline**. It pick the shots to render in 3ds Max, and when V-Ray finishes, Photoshop opens on its own and assembles every render pass into an organised, fully grouped `.psb`. Passes are linked smart objects, and adjustment masks come from named multimattes, meaning they can be automatically updated following a rerender. This also allows Photoshop work to be done on a low-res file, before carrying the work over to the high-res final render.
+The centrepiece is a **one-click render-to-Photoshop workflow**. It pick the shots to render in 3ds Max, and when V-Ray finishes, Photoshop opens on its own and assembles every render pass into an organised, fully grouped `.psb`. Passes are linked smart objects, and adjustment masks come from named multimattes, meaning they can be automatically updated following a rerender. This also allows Photoshop work to be done on a low-res file, before carrying the work over to the high-res final render.
 
 ---
 
