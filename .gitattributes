@@ -1,0 +1,5 @@
+*.ms   linguist-language=MAXScript
+*.mcr  linguist-language=MAXScript
+*.jsx  linguist-language=JavaScript
+*.atn  binary
+*.mat  binary
