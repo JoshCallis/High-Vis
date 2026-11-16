@@ -2,7 +2,9 @@
 
 **3ds Max and Photoshop automation for architectural visualisation.**
 
-Written between 2017 and 2021. Now that we have AI this repository is more of a museum than anything else!
+Written between 2017 and 2021. Updated and improved in 2026 using Claude Code.
+
+These tools are designed for my own workflow and software environment, and not intended/tested for public use. Implementing them in your own environment is not guaranteed or supported. This repository is mostly just a place to showcase my automation work, and to connect with any likeminded visualisers who stumble across it.
 
 These automations cover the whole visualisation workflow: setting up a scene, modelling and asset prep in 3ds Max, rendering, and building the layered Photoshop file that the final image is graded in.
 
