@@ -1,4 +1,4 @@
-# Callis Scripts
+# HighVis
 
 **3ds Max and Photoshop automation for architectural visualisation.**
 
@@ -61,7 +61,7 @@ Each folder has its own README with a description of every script:
 
 ## Notes
 
-These are production tools, kept as they were used: written for my own machine and folder conventions, not packaged as a product. Install paths are listed in each section's README. Some hard-coded paths (e.g. `C:\Callis Scripts\`) are part of how the pipeline passes settings between the two apps.
+These are production tools, kept as they were used: written for my own machine and folder conventions, not packaged as a product. Install paths are listed in each section's README. Inside the code the toolset still goes by its original working name, *Callis Scripts*: that is the name of the macro categories, install folders and action set, and of hard-coded paths such as `C:\Callis Scripts\` that the pipeline uses to pass settings between the two apps.
 
 ## Credits
 
