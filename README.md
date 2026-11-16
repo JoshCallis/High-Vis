@@ -2,9 +2,11 @@
 
 **3ds Max and Photoshop automation for architectural visualisation.**
 
-I wrote these tools between 2018 and 2024 while producing architectural renders. They cover the whole workflow: setting up a scene, modelling and asset prep in 3ds Max, rendering, and building the layered Photoshop file that the final image is graded in.
+Written between 2017 and 2021. Now that we have AI this repository is more of a museum than anything else!
 
-The centrepiece is a **one-click render-to-Photoshop pipeline**. Pick the shots to render in 3ds Max, and when V-Ray finishes, Photoshop opens on its own and assembles every render pass into an organised, fully grouped `.psb`. Passes are linked smart objects, masks come from the multimattes, and adjustment groups are ready to use. Re-renders and high-res versions update the same file without touching the grading work already done on it.
+These automations cover the whole visualisation workflow: setting up a scene, modelling and asset prep in 3ds Max, rendering, and building the layered Photoshop file that the final image is graded in.
+
+The centrepiece is a **one-click render-to-Photoshop pipeline**. It pick the shots to render in 3ds Max, and when V-Ray finishes, Photoshop opens on its own and assembles every render pass into an organised, fully grouped `.psb`. Passes are linked smart objects, and adjustment masks come from named multimattes, meaning they can be automatically updated following a rerender. This also allows Photoshop work to be done on a low-res file, before carrying the work over to the high-res final render.
 
 ---
 
@@ -19,7 +21,7 @@ The centrepiece is a **one-click render-to-Photoshop pipeline**. Pick the shots 
 | **Asset library processing** | Batch-processes purchased model collections (e.g. Evermotion volumes): merges each file, attaches geometry, converts it to V-Ray proxies, names and numbers everything, and saves one clean scene per asset, ready for an asset browser. |
 | **Photoshop grading shortcuts** | One-key scripts to build masked adjustment groups from the current selection or from a render pass (`A` overall, `D` diffuse, `S` sun, `X` specular…). Also: masks to group masks, vignettes, lighter/darker colour groups, entourage placement. |
 
-## How the pipeline fits together
+## How it fits together
 
 ```mermaid
 flowchart LR
@@ -55,7 +57,7 @@ Each folder has its own README with a description of every script:
 
 ## Requirements
 
-- Windows, **3ds Max** (2018–2024 era) with **V-Ray** (render elements + multimattes)
+- Windows, **3ds Max** with **V-Ray** or **Corona** (render elements + multimattes)
 - **Adobe Photoshop** CC 2018 or later (ExtendScript)
 - Some asset tools use `sLib.ms` from Neil Blevins' free [SoulburnScripts](http://www.neilblevins.com/soulburnscripts/soulburnscripts.htm) (see [credits](#credits))
 
